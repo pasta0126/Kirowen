@@ -1,46 +1,46 @@
 # AGENTS.md
 
-Guía para agentes (Claude, Codex, etc.) que trabajen en este repositorio.
+Guidelines for agents (Claude, Codex, etc.) working in this repository.
 
-## Qué es Kirowen
+## What Kirowen is
 
-Kirowen es una infraestructura universal de **registro de eventos inmutables**. Recibe eventos de sistemas independientes, los ordena en una secuencia global única y garantiza criptográficamente que el historial no se puede modificar ni borrar **sin que se detecte**.
+Kirowen is a universal **immutable event registry**. It receives events from independent systems, orders them into a single global sequence, and cryptographically guarantees that the history cannot be modified or deleted **without detection**.
 
-Principio central: **los eventos se añaden, nunca se sobrescriben. El pasado permanece verificable y los cambios generan nuevos acontecimientos.**
+Core principle: **events are appended, never overwritten. The past remains verifiable, and changes produce new events.**
 
-No es una criptomoneda, ni un token, ni un sistema de NFT, ni una plataforma financiera.
+It is not a cryptocurrency, a token, an NFT system or a financial platform.
 
-## Estado actual
+## Current status
 
-**Fase de análisis y diseño. Todavía no hay código.**
+**Analysis and design phase. There is no code yet.**
 
-- `docs/analisis-tecnico.md`: análisis técnico del concepto v0.1. Incluye garantías reales frente a aparentes, alternativas, una propuesta de arquitectura, riesgos y preguntas abiertas.
-- El documento conceptual v0.1 es la fuente de los requisitos. Si no está en `docs/`, pídeselo al usuario.
+- `docs/concept-v0.1.md` is the concept document and the source of the requirements.
+- `docs/technical-analysis.md` is the technical analysis of the concept. It covers real vs. apparent guarantees, alternatives, a proposed architecture, risks and open questions.
 
-## Decisiones tomadas (no re-litigar)
+## Decisions taken (do not relitigate)
 
-1. Infraestructura universal, agnóstica al contenido, para fuentes independientes.
-2. Secuencia global lógica única de eventos confirmados.
-3. Eventos encadenados criptográficamente y de solo adición. Las correcciones son eventos nuevos.
-4. Historial individual reconstruible por objeto. Los objetos se identifican dentro del ámbito de su fuente.
-5. Checkpoints automáticos: **uno cada 1.000 eventos ordinarios**. Los checkpoints no cuentan en esos 1.000 y ocupan su propia posición en la secuencia.
-6. Verificabilidad criptográfica independiente: una reconstrucción por un administrador debe ser detectable por verificadores que guarden pruebas.
-7. Separar integridad, veracidad, disponibilidad y durabilidad.
-8. Publicación periódica de cabeceras firmadas a los testigos externos cada `T` segundos, como complemento de los checkpoints (ver `docs/analisis-tecnico.md` §5.4).
-9. **Regla anti-autovalidación:** solo los eventos ordinarios disparan validaciones. Si desde la última validación no hay eventos ordinarios nuevos, no se genera otra. Nunca puede formarse una cadena infinita de registros que se validan a sí mismos.
-10. Sin criptomoneda ni token. Coste operativo mínimo, con la aspiración de ofrecer el servicio gratis.
+1. A universal, content-agnostic infrastructure for independent sources.
+2. A single logical global sequence of confirmed events.
+3. Events are cryptographically chained and append-only. Corrections are new events.
+4. Every object has a reconstructible individual history. Objects are scoped by their source.
+5. Automatic checkpoints: **one per 1,000 ordinary events**. Checkpoints do not count toward those 1,000 and occupy their own positions in the sequence.
+6. Independent cryptographic verifiability: a rebuild by an administrator must be detectable by verifiers that hold proofs.
+7. Integrity, truthfulness, availability and durability are kept separate.
+8. Signed tree heads are published to external witnesses every `T` seconds, as a complement to checkpoints (`docs/technical-analysis.md` §5.4).
+9. **No-self-validation rule:** only ordinary events trigger validations. If no new ordinary events have arrived since the last validation, no new one is produced. An infinite chain of records validating themselves must never form.
+10. No cryptocurrency or token. Operating cost is kept minimal, with the aspiration of offering a free service.
 
-## Decisiones abiertas (no presuponer)
+## Open decisions (do not assume)
 
-Nombre definitivo, lenguaje, almacenamiento, uso o descarte de blockchain, algoritmos, identidad y firmas, testigos externos, formatos de evento, privacidad y retención, replicación, gobernanza y modelo económico.
+Final name, language, storage, use or rejection of blockchain, algorithms, identity and signatures, external witnesses, event formats, privacy and retention, replication, governance and economic model.
 
-`docs/analisis-tecnico.md` §15 contiene **propuestas**, no decisiones. No las trates como requisitos hasta que el usuario las confirme.
+`docs/technical-analysis.md` §15 contains **proposals**, not decisions, except items marked **Accepted**. Do not treat the others as requirements until the user confirms them.
 
-## Normas de trabajo
+## Working rules
 
-- **Idioma:** la documentación y la conversación van en español. Los identificadores de código pueden ir en inglés.
-- **Precisión en las garantías:** no afirmes que algo es «imposible de modificar». El sistema garantiza **detección** bajo supuestos de confianza explícitos, que hay que decir siempre.
-- **No inventar criptografía:** usa especificaciones y bibliotecas existentes (RFC 6962/9162, C2SP) en lugar de estructuras propias.
-- **Simplicidad:** solo se justifica una tecnología o pieza si aporta una garantía que no se consigue de forma más simple y barata.
-- **El registro no interpreta el negocio:** las reglas de interpretación de los eventos son de las aplicaciones, no del registro.
-- **Cambios de diseño:** cuando una propuesta afecte a una decisión tomada, señala la tensión y deja que el usuario decida.
+- **Language:** this repository is public, so **everything in it is written in English**: docs, code, comments and commit messages. The conversation with the user may be in Spanish.
+- **Be precise about guarantees:** never claim something is "impossible to modify". The system guarantees **detection** under explicit trust assumptions, and those assumptions must always be stated.
+- **Do not invent cryptography:** use existing specs and libraries (RFC 6962/9162, C2SP) instead of home-grown structures.
+- **Simplicity:** a technology or component is justified only if it provides a guarantee that cannot be achieved more simply and cheaply.
+- **The registry does not interpret business logic:** the rules for interpreting events belong to applications, not to the registry.
+- **Design changes:** when a proposal affects a decision already taken, point out the tension and let the user decide.
