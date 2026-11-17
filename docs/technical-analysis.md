@@ -496,26 +496,79 @@ These are **proposals** that need confirmation unless marked **Accepted**.
 1. Core built on a **Merkle transparency log** (RFC 6962/9162, C2SP); no blockchain.
 2. SHA-256 and Ed25519 by default, with algorithm identifiers.
 3. **Events are signed by the source**, and source keys are registered in the log itself.
-4. **Leaves are commitments.** Envelope and content live outside the tree; content is salted and erasable.
+4. **Leaves are commitments.** Envelope and content live outside the tree. Content mode is chosen per event (§16, Q4). **Accepted.**
 5. Internal checkpoints every 1,000 ordinary events (decision 11) **and** periodic tree heads to witnesses, only when there are new ordinary events (no-self-validation rule, §5.4). **Accepted.**
-6. **External witnesses** following C2SP `tlog-witness`, with OpenTimestamps anchoring as a complement.
+6. **External witnesses** following C2SP `tlog-witness`, rolled out in phases (§16, Q6). **Accepted.**
 7. Per-object history via `object_seq` and `prev_object` in the envelope; the verifiable map is deferred.
-8. Synchronous batched confirmation in v1; asynchronous receipts if latency requires them.
-9. Public log served as static tiles from object storage.
-10. Quotas and source registration mandatory from day one.
+8. Synchronous batched confirmation in v1 (~1 s); asynchronous receipts only if latency requires them. **Accepted.**
+9. Public log served as static tiles from object storage. **Accepted** (leaves are public).
+10. Quotas and source registration mandatory from day one. **Accepted.**
 
 ## 16. Questions for the team
 
-1. Should log leaves be public (so anyone can monitor), or only checkpoints?
-2. Should each leaf carry an explicit linear link to the previous leaf (decision 4 taken literally), or is the Merkle tree enough?
-3. What confirmation latency is acceptable: 1 s, 10 s, minutes?
-4. What is the maximum content size per event?
-5. What is the content retention policy?
-6. Who could run witnesses: participants, third parties, both?
-7. Are anonymous sources allowed, or must every source register?
-8. Is proving the completeness of an object's history to third parties required (verifiable map)?
-9. Is end-to-end encryption a requirement or a future improvement?
-10. Implementation language? Go has the most mature ecosystem (Tessera, Sigsum, C2SP libraries); Rust is an alternative with good crypto libraries.
+Status as of 2026-11-17.
+
+1. **Public leaves or only checkpoints?** → **Decided: leaves are public.** Anyone can mirror and monitor the log. Leaves contain only envelope hashes, never content.
+2. **Explicit linear link to the previous leaf?** → **Decided: Merkle tree only.** Decision 4 (cryptographic chaining) is fulfilled by the Merkle tree (§5.1).
+3. **Confirmation latency?** → **Decided: ~1 s**, synchronous, batched (§5.6, variant 3).
+4. **Content mode and size?** → **Decided: the source chooses, per event, between two modes:**
+   - **Plain content:** the source sends the content in any format (JSON, YAML, plain text, bytes). The registry stores it, and the envelope commits to its hash.
+   - **Hash only:** the source sends only a hash of its content. **The registry never receives or stores salts or the original content.** The source is solely responsible for keeping the content and the salt, and for using a salt when the content is guessable (§7.2).
+
+   *Still open:* maximum size of plain content (64 KB suggested), and who may read plain content (public, or restricted to the source and the readers it authorizes, §7.3).
+
+   **Update (2026-11-17), leaning, not final:** to minimize GDPR exposure, the team leans toward the registry **not storing plain content at all**. It would store only:
+   - **envelopes** (hash-only mode), and possibly
+   - **content encrypted by the source**, with a key the registry never holds.
+
+   The source keeps its salt (and key). Points to take into account:
+   - **Encrypted or hashed personal data can still count as personal data** under the GDPR (pseudonymized, not anonymized). Never holding salts or keys greatly reduces exposure, but does not eliminate it. A legal opinion is still needed.
+   - **The envelope itself may contain personal data:** `object_id` (e.g. an email address used as an identifier) and source account details. Mitigation: the source sends a **pseudonymous `object_id`**, e.g. an HMAC of its internal identifier under a key it keeps. The registry indexes by that value and never sees the real identifier.
+   - **Encrypted storage brings back storage cost and the size-limit question.** Hash-only mode avoids both. Suggested path: hash-only in v1, encrypted storage as a later option.
+   - **If a source loses its content, salt or key,** the registry can still prove that an event with that hash existed, but nobody can recover what it said.
+
+   **Superseded (2026-11-17): the two-tier idea below is shelved.** It is kept for reference only.
+
+   **Earlier proposal: two service tiers.**
+   - **Free tier = certification (hash only).** The registry stores only envelopes. The source keeps its content and salt. This is the default and covers the core purpose: proving that a statement existed unaltered at a given point in the sequence.
+   - **Paid tier = optional encrypted storage.** The source may also store its content with us, **encrypted client-side** with a key the registry never holds. We store opaque ciphertext outside the tree; it is never part of a leaf.
+   - **Why this split works:**
+     - Storage is the dominant cost (§11), so the paid tier pays for exactly what costs money, and the free tier stays near-zero cost.
+     - It fits concept §17, which excludes tokens and per-transaction fees, not optional paid storage.
+   - **Sequencing:** v1 ships hash-only. The envelope keeps an optional `content_ref` field so encrypted storage can be added later without changing the event format. Because the leaf commits to `hash(salt + content)` and not to the ciphertext, a source can upload the ciphertext for an **already registered** event at any time, so adding storage later loses nothing.
+   - **Implications of the paid tier:**
+     - billing and a legal entity;
+     - a data-processing agreement (GDPR processor) with paying sources;
+     - availability and durability commitments for stored content;
+     - clear terms that **a lost key means lost data**, because we cannot decrypt or recover it.
+5. **Content retention?** → **Decided: retention period chosen per source**, with a service-wide maximum (value open). It does not affect the tree: only content outside the tree expires, while leaves and proofs are kept forever (§7.2, §10). Indefinite retention is ruled out. Envelope retention is still open.
+6. **Who runs witnesses?** → **Decided: phased combination.**
+   - From day one: public anchoring (OpenTimestamps plus a public repository), plus a witness of our own **for protocol testing only**. It gives no independent guarantee.
+   - As soon as possible: apply to the public witness network (witness-network.org / OmniWitness / ArmoredWitness, §18). One independent witness is enough to meet scenario 6.
+   - As the project grows: an easy-to-deploy witness for participants, plus sympathetic third parties.
+7. **Anonymous sources?** → **Decided: registration is mandatory.** Self-service sign-up is still possible.
+8. **Is completeness of an object's history provable to third parties (verifiable map)?** → Open.
+
+**Object identifiers and searchable metadata — Accepted (2026-11-17):**
+- **The registry assigns its own opaque object identifier** (e.g. UUIDv7) when an object is first used. Sources never need to use emails or other real-world identifiers as object ids. This refines §6.1: `(source, object_id)` becomes `(source, registry-assigned object_id)`.
+- **The source may attach metadata (tags)** so it can search its own objects by its own criteria.
+- **Metadata is the one place where plain data reaches the registry, so it must be limited.** Proposed limits:
+  - a maximum number of tags and a maximum size per tag;
+  - visible and searchable **only by the owning source** by default;
+  - optionally, **blind indexing**: the source sends `HMAC(source_key, value)` instead of the value. It can still search by exact match, and the registry never sees the real value.
+- **The event value is a fixed-length digest with an algorithm identifier** (e.g. exactly 32 bytes for SHA-256), not a free-form field. Otherwise sources could put plain content in it and bypass hash-only mode.
+- **The registry is agnostic to what the hashed content means.** It does not know whether a hash represents a sensor reading or anything else.
+9. **Is end-to-end encryption a requirement?** → Open. A source that does not want the registry to see its content can already use hash-only mode.
+10. **Implementation language?** → **Decided (2026-11-17): Go.** It has the most mature ecosystem: Trillian Tessera, Sigsum, the C2SP reference libraries and OmniWitness are all written in Go. Use **Tessera**, not Trillian v1, which is in maintenance mode.
+
+**Content and pricing — Decided (2026-11-17):**
+- **Hash-only.** The registry stores envelopes, never content. The source keeps its content and salt.
+- **Free for everyone from the start**, with the intention of keeping it that way.
+- **Encrypted content storage is shelved indefinitely.** It may never be built. It can be added later without changing existing events if it is ever revisited (see the shelved proposal under Q4).
+- **External anchoring: only free mechanisms. Paid anchoring (Ethereum or any other chain with per-transaction fees) is ruled out.**
+  - **OpenTimestamps** is free for us because public calendar servers aggregate many hashes into one Bitcoin transaction and pay its fee themselves.
+  - It depends on those calendars staying available, so we should submit to several of them.
+  - Only checkpoints are anchored, never individual events.
 
 ## 17. Phased plan
 
@@ -542,9 +595,49 @@ These are **proposals** that need confirmation unless marked **Accepted**.
 
 ---
 
+## 18. Existing products and standards (survey, 2026-11)
+
+This survey answers the question of whether something equal or similar already exists. It is based on public web sources and should be re-checked before any decision depends on it.
+
+| Product / standard | What it is | Similarity | Key differences |
+|---|---|---|---|
+| **IETF SCITT** (RFC 9943, 2026) | Standard architecture for a *Transparency Service* that registers signed statements in an append-only ledger and returns receipts (COSE Receipts, RFC 9942) | **Very high in concept.** It is essentially the standard for what Kirowen does | A standard, not a service. Examples are scoped to software supply chains. No per-object history model. CBOR/COSE formats |
+| **DataTrails** (formerly RKVST) | Commercial SaaS for "who did what when" over any data; Merkle log (Forestrie); SCITT API (preview) | **High.** Generic provenance for arbitrary events | Commercial, operated by one company; free tier but paid plans; trust relies on the vendor plus its proofs |
+| **Azure Confidential Ledger** | Managed tamper-evident ledger running in TEEs (CCF), with receipts | **High** functionally | One ledger per customer, not a shared universal log; paid (~$3/day per instance); trust in Microsoft and in TEE hardware; no external witnesses |
+| **immudb / immudb Vault** | Open-source immutable database with Merkle proofs; hosted Vault with a free tier (10,000 documents / 250 MB at its 2023 launch) | **Medium–high** | Per-customer database; the client must store state to detect tampering; no witness ecosystem |
+| **Sigstore Rekor** (public good instance) | Free public transparency log | **Medium.** Free, public, Merkle, witnesses | Only software signatures and attestations (`hashedrekord`, `dsse`); size limits; no object model; not intended for IoT or business events |
+| **Sigsum** | Minimal public transparency log for signed checksums, with witness cosigning | **Medium** | Only signed checksums; no content and no object history. A good reference design and a possible source of witnesses |
+| **Hedera Consensus Service** | Public network that orders and timestamps messages in "topics" for unrelated applications | **High** functionally: a shared ordered log for independent systems | It is a blockchain with a token (HBAR), contradicting concept §18. Pays per message (USD 0.0008 from January 2026, so 1M events/day ≈ USD 800/day) |
+| **Amazon QLDB** | Managed ledger database | Medium | Discontinued (2025) |
+| **OpenTimestamps** | Free timestamp anchoring in Bitcoin | Low (only one component) | Timestamping only. Useful as an anchor (§4.1 F) |
+| **Trillian Tessera, C2SP specs, OmniWitness / ArmoredWitness** | Building blocks: tile-based log library, open formats, public witness network | — | Components, not a product. Kirowen would build on them |
+
+**Conclusions:**
+
+1. **No identical product exists.** None of the services found combines all of the following:
+   - a single universal log shared by unrelated sources;
+   - free use;
+   - open source and open standards;
+   - independent witnesses;
+   - a per-object history model;
+   - no token.
+2. **The concept is not new, and its building blocks already exist.** SCITT standardizes the idea, Tessera, C2SP and the witness network provide the cryptographic core, and DataTrails and Azure Confidential Ledger sell similar services. Kirowen's value would be **the combination plus free use plus openness**, not a new mechanism.
+3. **Interoperability with SCITT is worth evaluating.** Being able to issue SCITT-compatible receipts would give credibility and interoperability at a moderate cost.
+4. **"Public service for everyone" is an operational decision, not an architectural one.** The architecture in §12 is the same whether Kirowen serves only its authors or anyone. What changes is legal exposure (storing third parties' plain content makes us a data processor under the GDPR), abuse control, support and cost.
+
+---
+
 ## References
 
 - RFC 6962: *Certificate Transparency*.
+- RFC 9943: *An Architecture for Trustworthy and Transparent Digital Supply Chains* (SCITT). https://www.rfc-editor.org/rfc/rfc9943.html
+- Trillian Tessera: https://github.com/transparency-dev/tessera
+- Witness network: https://blog.transparency.dev/can-i-get-a-witness-network, https://github.com/transparency-dev/armored-witness
+- DataTrails SCITT: https://docs.datatrails.ai/developers/developer-patterns/scitt-api/
+- Azure Confidential Ledger: https://learn.microsoft.com/azure/confidential-ledger
+- immudb Vault: https://codenotary.com/blog/welcome-immudb-vault-the-fully-managed-immutable-cloud-database
+- Rekor v2: https://blog.sigstore.dev/rekor-v2-ga/
+- Hedera HCS pricing: https://hedera.com/blog/price-update-to-consensussubmitmessage-in-consensus-service-january-2026/
 - RFC 9162: *Certificate Transparency Version 2.0*.
 - C2SP (Community Cryptography Specification Project): `signed-note`, `tlog-checkpoint`, `tlog-tiles`, `tlog-witness`, `tlog-cosignature`.
 - Trillian Tessera: Go library for tile-based transparency logs.
