@@ -18,3 +18,7 @@ Design phase; no code yet. The implementation will be in Go, on top of [Trillian
 
 - [Concept](docs/concept-v0.1.md): goals and requirements.
 - [Technical analysis](docs/technical-analysis.md): threat model, architecture and decisions.
+
+## License
+
+[Apache License 2.0](LICENSE).
