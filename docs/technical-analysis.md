@@ -561,6 +561,13 @@ Status as of 2026-11-17.
 9. **Is end-to-end encryption a requirement?** → Open. A source that does not want the registry to see its content can already use hash-only mode.
 10. **Implementation language?** → **Decided (2026-11-17): Go.** It has the most mature ecosystem: Trillian Tessera, Sigsum, the C2SP reference libraries and OmniWitness are all written in Go. Use **Tessera**, not Trillian v1, which is in maintenance mode.
 
+**Envelope format, parameters and retention — Decided (2026-11-17):** see `docs/envelope-v0.md`.
+- **Format:** deterministic CBOR + COSE_Sign1, Ed25519, SHA-256.
+- **Leaves:** `[1, type, body]`.
+- **Initial parameters:** 1 s batches, `T` = 60 s, `k` = 1, 1 KiB envelopes, default quotas.
+- **Retention:** the tree is kept forever. Envelopes are kept for a period the source chooses, up to 5 years (can be raised later, never lowered). Tags live outside the envelope and can be deleted.
+- **Proposals 2, 3 and 7 of §15 are now part of this spec:** algorithms, source-signed events with keys registered in the log, and `object_seq`/`prev_object`.
+
 **Content and pricing — Decided (2026-11-17):**
 - **Hash-only.** The registry stores envelopes, never content. The source keeps its content and salt.
 - **Free for everyone from the start**, with the intention of keeping it that way.

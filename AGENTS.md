@@ -15,6 +15,8 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 **Analysis and design phase. There is no code yet.**
 
 - `docs/concept-v0.1.md` is the concept document and the source of the requirements.
+- `docs/envelope-v0.md` is the draft wire format (envelope, leaves, checkpoints) and the initial parameters.
+- `docs/governance-and-operations.md` covers non-technical topics: legal, sustainability, governance and naming.
 - `docs/technical-analysis.md` is the technical analysis of the concept. It covers real vs. apparent guarantees, alternatives, a proposed architecture, risks and open questions.
 
 ## Decisions taken (do not relitigate)
@@ -31,15 +33,16 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 10. Merkle transparency log as the core, with public leaves (hashes only), ~1 s synchronous batched confirmation, and mandatory source registration with quotas.
 11. **Hash-only, free for everyone:** the registry stores envelopes only, never content and never salts. The source keeps both. Encrypted storage is shelved indefinitely.
 12. **Accepted:** the registry assigns opaque object ids. Sources may attach limited search metadata, private to the source and optionally blind-indexed. The event value is a fixed-length digest. See `docs/technical-analysis.md` §16.
-13. Tree leaves are never deleted. With hash-only there is no content to expire. Per-source retention (with a service-wide maximum) applies to whatever off-tree data exists; envelope retention is still open.
-14. Witnesses are rolled out in phases: public anchoring and a test-only witness of our own, then the public witness network, then participants and third parties.
-15. Implementation language: **Go**, building on Trillian Tessera and the C2SP libraries.
-16. Only free external anchoring (e.g. OpenTimestamps). No Ethereum or any anchoring that charges per entry or per transaction.
-17. No cryptocurrency or token. Operating cost is kept minimal, with the aspiration of offering a free service.
+13. Retention: tree leaves are kept forever. Envelopes are kept for a period the source chooses, **up to 5 years**. Tags are outside the envelope and can be deleted.
+14. Envelope, leaf and checkpoint formats and the initial parameters follow `docs/envelope-v0.md` (deterministic CBOR + COSE_Sign1, Ed25519, SHA-256).
+15. Witnesses are rolled out in phases: public anchoring and a test-only witness of our own, then the public witness network, then participants and third parties.
+16. Implementation language: **Go**, building on Trillian Tessera and the C2SP libraries.
+17. Only free external anchoring (e.g. OpenTimestamps). No Ethereum or any anchoring that charges per entry or per transaction.
+18. No cryptocurrency or token. Operating cost is kept minimal, with the aspiration of offering a free service.
 
 ## Open decisions (do not assume)
 
-Final name, storage backend, final algorithms, identity and signature details, event and envelope formats, envelope retention, metadata limits, replication, governance and long-term sustainability.
+Final name (see `docs/governance-and-operations.md` §6), storage backend for production, replication, operating entity and jurisdiction, governance and funding.
 
 `docs/technical-analysis.md` §15 contains **proposals**, not decisions, except items marked **Accepted**. Do not treat the others as requirements until the user confirms them.
 

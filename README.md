@@ -18,6 +18,8 @@ Design phase; no code yet. The implementation will be in Go, on top of [Trillian
 
 - [Concept](docs/concept-v0.1.md): goals and requirements.
 - [Technical analysis](docs/technical-analysis.md): threat model, architecture and decisions.
+- [Envelope format v0](docs/envelope-v0.md): wire format and initial parameters.
+- [Governance and operations](docs/governance-and-operations.md): legal, sustainability and naming.
 
 ## License
 
