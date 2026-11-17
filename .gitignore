@@ -1,0 +1,64 @@
+# --- Go ---
+# Binaries
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Coverage and profiling
+coverage.*
+*.coverprofile
+*.prof
+*.pprof
+
+# Workspace files (local only)
+go.work
+go.work.sum
+
+# Vendored dependencies (we use modules)
+/vendor/
+
+# --- Local registry data (never commit log contents) ---
+# Tiles, checkpoints, databases and other data produced by running a
+# local registry, witness or monitor.
+/data/
+/tmp/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+
+# --- Secrets and keys ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.sec
+*.secret
+secrets/
+
+# --- Editors and IDEs ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Agent local files (personal, not shared) ---
+.claude/settings.local.json
+CLAUDE.local.md
