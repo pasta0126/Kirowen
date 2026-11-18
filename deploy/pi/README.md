@@ -20,7 +20,7 @@ kirowen/
   docker-compose.yml, nginx.conf
 ```
 
-Build:
+Build by hand (the deploy script does this for you):
 
 ```sh
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o kirowend ./cmd/kirowend
@@ -33,9 +33,18 @@ kirowen keygen-log -origin kirowen.northernarchive.com/log/v0 -out keys/log
 kirowen keygen -out keys/system
 ```
 
-Copy the website from the repository: `rsync -a --delete web/ <host>:kirowen/web/`.
+Start: `docker compose up -d`.
 
-Start: `docker compose up -d`. The container runs as uid 1001, which must own `data/` and be able to read `keys/`.
+## Deploying updates
+
+From a clean checkout on your machine:
+
+```sh
+deploy/pi/deploy.sh <ssh-host>            # checks, arm64 build, upload, nginx -t, restart, smoke test
+deploy/pi/deploy.sh <ssh-host> rollback   # restore the previous deploy
+```
+
+It replaces only `bin/kirowend`, `web/`, `nginx.conf` and `docker-compose.yml`, keeping each as `*.prev`. It never touches `keys/` or `data/`. The container runs as uid 1001, which must own `data/` and be able to read `keys/`.
 
 Everything else (registration, objects, events) goes through the API. The host is not used to write.
 
