@@ -17,6 +17,11 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 - `internal/dcbor`: strict deterministic CBOR (decode only if re-encoding reproduces the input).
 - `envelope`: COSE_Sign1 envelope, signing, parsing (stateless acceptance rules) and signature verification. Test vectors are in `envelope/testdata/vectors.json`; regenerate them with `go test ./envelope -run TestVectors -update` only when the format changes on purpose.
 - `leaf`: event and checkpoint leaves, and the RFC 6962 leaf hash.
+- `registry`: the sequencer on Tessera's POSIX driver. It stores envelopes outside the tree, inserts a checkpoint leaf after every 1,000 ordinary leaves, recovers that state on restart, and returns confirmations.
+- `verify`: tree head, inclusion and consistency checks, and a full log audit (a monitor).
+- `cmd/kirowen`: the phase 0 CLI (`keygen-log`, `keygen`, `add`, `verify`, `audit`).
+
+Phase 0 limits (deliberate, see `docs/technical-analysis.md` §17): no network API; source keys come from a static list; the stateful acceptance rules (object ownership, `oseq`/`prev`, `kseq`, `refs`, quotas, idempotency) are not enforced by the registry yet; source ids are chosen by the client.
 
 Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 

@@ -592,7 +592,7 @@ Status as of 2026-11-17.
 
 ## 17. Phased plan
 
-**Phase 0: proof of concept (verifiable end to end).**
+**Phase 0: proof of concept (verifiable end to end).** *Status (2026-11-18): core implemented; see `AGENTS.md` for the code map and the phase 0 limits. Covered by tests: scenario 5 (a modified envelope or file fails verification), scenario 6 against a verifier that kept a tree head (`TestRebuildDetected`; witnesses come in phase 1), scenario 7 (consistency proofs) and the checkpoint leaf every 1,000 events (`TestDefaultCheckpointEvery`). Scenario 3 holds by construction (there is no update operation). Not yet: scenario 2 needs the per-object index (phase 2); scenario 4's `refs` are carried but not yet checked by the registry.*
 - Sequencer, Merkle tree, internal checkpoints every 1,000 events, tiles on disk.
 - Source-signed envelopes, separate content.
 - Verification CLI: inclusion, consistency and signatures.

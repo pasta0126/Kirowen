@@ -214,3 +214,11 @@ The registry's response to an accepted envelope:
 | `inclusion_proof` | List of sibling hashes |
 
 The source should store this bundle together with the envelope, its content and its salt.
+
+Encoding (phase 0): the registry returns the confirmation as a CBOR map with integer keys 1–4 in the order above. The CLI stores a **receipt** per file, as JSON: `envelope`, `salt`, `leaf_index`, `tree_head` and `inclusion_proof` (byte strings in base64). The receipt plus the file are a self-sufficient proof (§9).
+
+## 11. Tree heads and the no-self-validation rule (implementation notes)
+
+- Tessera publishes a signed tree head at most every 1 s, and **only when the tree has grown**. Re-publishing an unchanged tree is disabled.
+- When a log is created, Tessera publishes one tree head for the empty tree (size 0). This is the genesis, not a validation of anything.
+- After a checkpoint leaf is appended at position `N`, the next tree head covers size `N + 1`, so it covers a leaf that is not ordinary. That is a single extra tree head per 1,000 events. It never triggers another checkpoint leaf (only ordinary leaves count), so no self-validating chain can form. Tree heads sent to external witnesses (phase 1) will follow the stricter rule in §5.2: only if ordinary leaves were added.

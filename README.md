@@ -14,11 +14,20 @@ Kirowen guarantees that a source made a statement and that the statement has not
 
 ## Status
 
-Phase 0 (proof of concept) has started. The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). So far: the envelope and leaf formats, with test vectors.
+Phase 0 (proof of concept). The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). It runs end to end on a local directory; there is no network API yet.
 
-```
+```sh
 go test ./...
+go build ./cmd/kirowen
+
+./kirowen keygen-log -origin example.com/log/v0 -out log   # registry key
+./kirowen keygen -out sensor                               # source key
+./kirowen add -data data -log-key log.key -key sensor.key reading.txt
+./kirowen verify -log data/log -log-pub log.pub -pub sensor.pub reading.txt.receipt.json reading.txt
+./kirowen audit -log data/log -log-pub log.pub
 ```
+
+`add` writes `reading.txt.receipt.json` (envelope, salt, leaf index, signed tree head and inclusion proof). With it and the file, anyone holding the two public keys can verify the event. `data/log` is the public log (C2SP tiles); it can be served as static files, and `-log` also accepts an `https://` URL.
 
 - [Concept](docs/concept-v0.1.md): goals and requirements.
 - [Technical analysis](docs/technical-analysis.md): threat model, architecture and decisions.
