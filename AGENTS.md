@@ -39,10 +39,11 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 16. Implementation language: **Go**, building on Trillian Tessera and the C2SP libraries.
 17. Only free external anchoring (e.g. OpenTimestamps). No Ethereum or any anchoring that charges per entry or per transaction.
 18. No cryptocurrency or token. Operating cost is kept minimal, with the aspiration of offering a free service.
+19. **Name: Kirowen** is kept (decided 2026-11-18), accepting the known similarity to Amazon's Kiro (`docs/governance-and-operations.md` §6).
 
 ## Open decisions (do not assume)
 
-Final name (see `docs/governance-and-operations.md` §6), storage backend for production, replication, operating entity and jurisdiction, governance and funding.
+Storage backend for production, replication, operating entity and jurisdiction, governance and funding.
 
 `docs/technical-analysis.md` §15 contains **proposals**, not decisions, except items marked **Accepted**. Do not treat the others as requirements until the user confirms them.
 

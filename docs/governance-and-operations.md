@@ -99,10 +99,7 @@ Committing to this publicly is itself a trust signal.
 - **No trademark, company or product called "Kirowen" was found.** Searches were not exhaustive. ⚖️ Search EUIPO eSearch, TMview and the USPTO before investing in branding.
 - **Domains:** `kirowen.com` and `kirowen.io` appear unregistered. `.dev`, `.org` and `.eu` could not be confirmed by WHOIS and should be checked with a registrar.
 - **Risk of confusion:** "Kirowen" is close to **Kiro**, Amazon's AI IDE, which has a trademark application in classes 9 and 42 (software). It is even closer to **Kiroween**, Kiro's annual hackathon. Both are in the same field (software and developers). This is a moderate risk of confusion, both legally ⚖️ and for search visibility.
-- **Options:**
-  1. Keep "Kirowen" after a professional trademark check.
-  2. Rename now, while the cost is close to zero: no code, no users, no domain.
-- **If renaming:** the new name should be short, pronounceable in English and Spanish, have a free `.dev` or `.org` domain, and be clear of trademarks in classes 9 and 42. Candidates with an "inscription / record / witness" meaning (e.g. Latin words like *tabularium* or *sigillum*) are mostly taken as `.com` and `.io`, so a coined word is more practical.
+- **Decided (2026-11-18): keep "Kirowen".** Several alternative names were explored and none was preferred. The similarity to Kiro is accepted as a known risk. ⚖️ A professional trademark check (EUIPO, TMview, USPTO, classes 9 and 42) is still advisable before registering the name as a trademark or investing in branding.
 
 ## 7. Witness recruitment
 
@@ -116,5 +113,5 @@ Committing to this publicly is itself a trust signal.
 1. Who operates Kirowen when the public service opens: you personally, or an association?
 2. ~~Jurisdiction~~ → Spain (EU).
 3. ~~Grants~~ → not for now.
-4. Keep "Kirowen" or rename now? (pending)
+4. ~~Keep "Kirowen" or rename~~ → keep "Kirowen".
 5. ~~Community files~~ → added.
