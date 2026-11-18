@@ -1,46 +1,39 @@
-# Deployment on a single host (phase 0)
+# Deployment on a single host
 
-The public log is served as static files by nginx behind Traefik. The
-registry itself is the `kirowen` CLI run on the host: there is no write
-API until phase 2.
+Two containers behind Traefik:
+
+- `kirowen-api` runs `kirowend` (registry + HTTP API) on `kirowen-api.northernarchive.com`. It is the only writer of `data/`.
+- `kirowen-log` (nginx) serves the public log read-only on `kirowen.northernarchive.com/log/v0/`.
 
 Layout on the host:
 
 ```
 kirowen/
-  bin/kirowen            linux/arm64 build of ./cmd/kirowen
-  keys/log.key           registry signing key (secret, mode 600, never leaves the host)
+  bin/kirowend           linux/arm64 build of ./cmd/kirowend
+  keys/log.key           registry signing key (secret, never leaves the host)
   keys/log.pub           registry verifier key (public)
+  keys/system.key        system source key, signs key registrations (secret)
   data/log/              public log (served at /log/v0/)
   data/envelopes/        envelopes (not served)
-  docker-compose.yml     this directory's file
-  nginx.conf             this directory's file
+  data/state.db          SQLite state (not served)
+  docker-compose.yml, nginx.conf
 ```
 
-Build and copy:
+Build:
 
 ```sh
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o kirowen-linux-arm64 ./cmd/kirowen
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o kirowend ./cmd/kirowend
 ```
 
-Create the registry key on the host, once:
+Keys, once, on the host (with a locally built `kirowen` CLI):
 
 ```sh
-bin/kirowen keygen-log -origin kirowen.northernarchive.com/log/v0 -out keys/log
+kirowen keygen-log -origin kirowen.northernarchive.com/log/v0 -out keys/log
+kirowen keygen -out keys/system
 ```
 
-Create the empty log, then start the web container:
+Start: `docker compose up -d`. The container runs as uid 1001, which must own `data/` and be able to read `keys/`.
 
-```sh
-bin/kirowen init -data data -log-key keys/log.key
-docker compose up -d
-```
+Everything else (registration, objects, events) goes through the API. The host is not used to write.
 
-Check from anywhere:
-
-```sh
-kirowen audit -log https://kirowen.northernarchive.com/log/v0/ -log-pub log.pub
-```
-
-Back up `keys/` and `data/` off the host. The log is public and safe to copy
-anywhere; `keys/log.key` is not.
+Back up `keys/` and `data/` off the host when it matters. The log is public and safe to copy anywhere; the keys and `state.db` are not.

@@ -15,6 +15,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -23,20 +25,24 @@ import (
 	"github.com/transparency-dev/tessera/client"
 	"golang.org/x/mod/sumdb/note"
 
+	"github.com/pasta0126/kirowen/api"
 	"github.com/pasta0126/kirowen/envelope"
 	"github.com/pasta0126/kirowen/registry"
 	"github.com/pasta0126/kirowen/verify"
 )
 
 const usage = `usage:
-  kirowen keygen-log -origin ORIGIN -out NAME     write NAME.key (secret) and NAME.pub
-  kirowen keygen     -out NAME                    write a source key: NAME.key (secret) and NAME.pub
-  kirowen init   -data DIR -log-key F            create an empty log (publishes the size-0 tree head)
-  kirowen add    -data DIR -log-key F -key F [-object HEX] FILE...
+  kirowen keygen-log -origin ORIGIN -out NAME     registry key: NAME.key (secret) and NAME.pub
+  kirowen keygen     -out NAME                    source key: NAME.key (secret) and NAME.pub
+  kirowen register   -api URL -key NAME.key       self-service sign-up; writes NAME.cred.json
+  kirowen object     -key NAME.key                create an object; prints its id
+  kirowen add        -key NAME.key [-object HEX] FILE...
                                                   record files; writes FILE.receipt.json
-  kirowen verify -log DIR|URL -log-pub F -pub F RECEIPT [FILE]
+  kirowen verify     -log DIR|URL -log-pub F -pub F RECEIPT [FILE]
                                                   verify a receipt (and the file, if given)
-  kirowen audit  -log DIR|URL -log-pub F          check the whole log and its checkpoints
+  kirowen audit      -log DIR|URL -log-pub F      check the whole log and its checkpoints
+
+The API URL and token are read from NAME.cred.json next to the key.
 `
 
 func main() {
@@ -45,7 +51,7 @@ func main() {
 		os.Exit(2)
 	}
 	cmds := map[string]func([]string) error{
-		"keygen-log": keygenLog, "keygen": keygen, "init": initCmd, "add": add, "verify": verifyCmd, "audit": audit,
+		"keygen-log": keygenLog, "keygen": keygen, "register": register, "object": objectCmd, "add": add, "verify": verifyCmd, "audit": audit,
 	}
 	cmd, ok := cmds[os.Args[1]]
 	if !ok {
@@ -60,12 +66,11 @@ func main() {
 
 // --- keys ---
 
-// sourceKey is the on-disk source key. In phase 0 the source id is chosen
-// locally; from phase 2 the registry assigns it at registration.
+// sourceKey is the on-disk source key. The source id is assigned by the
+// registry at registration and kept in the credentials file.
 type sourceKey struct {
-	SourceID string `json:"source_id"`
-	Seed     string `json:"ed25519_seed,omitempty"`
-	Public   string `json:"ed25519_public"`
+	Seed   string `json:"ed25519_seed,omitempty"`
+	Public string `json:"ed25519_public"`
 }
 
 func writeNew(path string, data []byte, mode os.FileMode) error {
@@ -110,9 +115,7 @@ func keygen(args []string) error {
 	if err != nil {
 		return err
 	}
-	id := make([]byte, envelope.IDSize)
-	rand.Read(id)
-	k := sourceKey{SourceID: hex.EncodeToString(id), Seed: hex.EncodeToString(priv.Seed()), Public: hex.EncodeToString(pub)}
+	k := sourceKey{Seed: hex.EncodeToString(priv.Seed()), Public: hex.EncodeToString(pub)}
 	sec, _ := json.MarshalIndent(k, "", "  ")
 	k.Seed = ""
 	pb, _ := json.MarshalIndent(k, "", "  ")
@@ -123,7 +126,7 @@ func keygen(args []string) error {
 		return err
 	}
 	kid := envelope.KeyID(pub)
-	fmt.Printf("source_id %s\nkey_id    %x\n", k.SourceID, kid)
+	fmt.Printf("key_id %x\n", kid)
 	return nil
 }
 
@@ -171,39 +174,6 @@ func readLogKeys(skeyPath, vkeyPath string) (note.Signer, note.Verifier, error) 
 	return s, v, err
 }
 
-// --- client state: per-key and per-object sequence numbers ---
-
-type objectHead struct {
-	Next uint64 `json:"next_oseq"`
-	Prev string `json:"prev,omitempty"`
-}
-
-type clientState struct {
-	NextKeySeq uint64                 `json:"next_kseq"`
-	Objects    map[string]*objectHead `json:"objects"`
-}
-
-func loadState(path string) (*clientState, error) {
-	st := &clientState{Objects: map[string]*objectHead{}}
-	b, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return st, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return st, json.Unmarshal(b, st)
-}
-
-func saveState(path string, st *clientState) error {
-	b, _ := json.MarshalIndent(st, "", "  ")
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
-}
-
 // --- receipts ---
 
 // receipt is what a source keeps for each recorded file: the envelope, the
@@ -224,53 +194,99 @@ func digest(salt, content []byte) []byte {
 	return h.Sum(nil)
 }
 
-func initCmd(args []string) error {
-	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	dataDir := fs.String("data", "", "registry data directory")
-	logKey := fs.String("log-key", "", "log signing key (from keygen-log)")
-	fs.Parse(args)
-	if *dataDir == "" || *logKey == "" {
-		return errors.New("init needs -data and -log-key")
+// --- API client ---
+
+type creds struct {
+	API      string `json:"api"`
+	SourceID string `json:"source_id"`
+	Token    string `json:"token"`
+}
+
+func credPath(keyPath string) string { return strings.TrimSuffix(keyPath, ".key") + ".cred.json" }
+
+func readCreds(keyPath string) (*creds, error) {
+	b, err := os.ReadFile(credPath(keyPath))
+	if err != nil {
+		return nil, fmt.Errorf("%w (run kirowen register first)", err)
 	}
-	signer, verifier, err := readLogKeys(*logKey, strings.TrimSuffix(*logKey, ".key")+".pub")
+	var c creds
+	return &c, json.Unmarshal(b, &c)
+}
+
+type apiClient struct {
+	base, token string
+	hc          *http.Client
+}
+
+type apiErr struct {
+	Status int
+	Msg    string
+	Body   map[string]any
+}
+
+func (e *apiErr) Error() string { return fmt.Sprintf("API %d: %s", e.Status, e.Msg) }
+
+func (c *apiClient) do(method, path, ctype string, body []byte, out any) error {
+	req, err := http.NewRequest(method, strings.TrimSuffix(c.base, "/")+path, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
-	ctx := context.Background()
-	reg, err := registry.Open(ctx, registry.Config{
-		Dir: *dataDir, Signer: signer, Verifier: verifier, Keys: registry.StaticKeys(),
-	})
+	if ctype != "" {
+		req.Header.Set("Content-Type", ctype)
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := c.hc.Do(req)
 	if err != nil {
 		return err
 	}
-	if err := reg.Close(ctx); err != nil {
-		return err
-	}
-	cp, err := os.ReadFile(reg.LogDir() + "/checkpoint")
+	defer resp.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return err
 	}
-	fmt.Print(string(cp))
+	if resp.StatusCode >= 300 {
+		e := &apiErr{Status: resp.StatusCode}
+		json.Unmarshal(b, &e.Body)
+		e.Msg, _ = e.Body["error"].(string)
+		if e.Msg == "" {
+			e.Msg = strings.TrimSpace(string(b))
+		}
+		return e
+	}
+	if out != nil {
+		return json.Unmarshal(b, out)
+	}
 	return nil
 }
 
-func add(args []string) error {
-	fs := flag.NewFlagSet("add", flag.ExitOnError)
-	dataDir := fs.String("data", "", "registry data directory")
-	logKey := fs.String("log-key", "", "log signing key (from keygen-log)")
-	logPub := fs.String("log-pub", "", "log verifier key (default: -log-key with .pub)")
-	keyPath := fs.String("key", "", "source key (from keygen)")
-	objHex := fs.String("object", "", "object id (hex, 16 bytes); a new object if empty")
-	fs.Parse(args)
-	if *dataDir == "" || *logKey == "" || *keyPath == "" || fs.NArg() == 0 {
-		return errors.New("add needs -data, -log-key, -key and at least one FILE")
-	}
-	if *logPub == "" {
-		*logPub = strings.TrimSuffix(*logKey, ".key") + ".pub"
-	}
-	signer, verifier, err := readLogKeys(*logKey, *logPub)
+func newClient(keyPath string) (*apiClient, *creds, ed25519.PrivateKey, error) {
+	sk, err := readSourceKey(keyPath)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
+	}
+	priv, err := sk.private()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	cr, err := readCreds(keyPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return &apiClient{base: cr.API, token: cr.Token, hc: &http.Client{Timeout: 60 * time.Second}}, cr, priv, nil
+}
+
+func register(args []string) error {
+	fs := flag.NewFlagSet("register", flag.ExitOnError)
+	apiURL := fs.String("api", "https://kirowen-api.northernarchive.com", "API base URL")
+	keyPath := fs.String("key", "", "source key (from keygen)")
+	fs.Parse(args)
+	if *keyPath == "" {
+		return errors.New("register needs -key")
+	}
+	if _, err := os.Stat(credPath(*keyPath)); err == nil {
+		return fmt.Errorf("%s already exists: this key is registered", credPath(*keyPath))
 	}
 	sk, err := readSourceKey(*keyPath)
 	if err != nil {
@@ -280,37 +296,78 @@ func add(args []string) error {
 	if err != nil {
 		return err
 	}
-	src, err := hex.DecodeString(sk.SourceID)
+	c := &apiClient{base: *apiURL, hc: &http.Client{Timeout: 60 * time.Second}}
+	var info struct {
+		Origin string `json:"origin"`
+	}
+	if err := c.do("GET", "/v0/", "", nil, &info); err != nil {
+		return err
+	}
+	pub := priv.Public().(ed25519.PublicKey)
+	body, _ := json.Marshal(api.RegisterRequest{PublicKey: pub, Proof: ed25519.Sign(priv, envelope.RegistrationMessage(info.Origin, pub))})
+	var resp api.RegisterResponse
+	if err := c.do("POST", "/v0/sources", "application/json", body, &resp); err != nil {
+		return err
+	}
+	b, _ := json.MarshalIndent(creds{API: *apiURL, SourceID: resp.SourceID, Token: resp.Token}, "", "  ")
+	if err := writeNew(credPath(*keyPath), append(b, '\n'), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, "could not save credentials; token: %s\n", resp.Token)
+		return err
+	}
+	fmt.Printf("registered on %s\nsource_id %s\nkey_id    %s\nkey registered at leaf %d\ncredentials in %s (keep it secret)\n",
+		info.Origin, resp.SourceID, resp.KeyID, resp.Registration.LeafIndex, credPath(*keyPath))
+	return nil
+}
+
+func objectCmd(args []string) error {
+	fs := flag.NewFlagSet("object", flag.ExitOnError)
+	keyPath := fs.String("key", "", "source key")
+	fs.Parse(args)
+	c, _, _, err := newClient(*keyPath)
 	if err != nil {
 		return err
 	}
-	obj := make([]byte, envelope.IDSize)
+	var resp struct {
+		ObjectID string `json:"object_id"`
+	}
+	if err := c.do("POST", "/v0/objects", "", nil, &resp); err != nil {
+		return err
+	}
+	fmt.Println(resp.ObjectID)
+	return nil
+}
+
+func add(args []string) error {
+	fs := flag.NewFlagSet("add", flag.ExitOnError)
+	keyPath := fs.String("key", "", "source key (registered)")
+	objHex := fs.String("object", "", "object id (hex); a new object if empty")
+	fs.Parse(args)
+	if *keyPath == "" || fs.NArg() == 0 {
+		return errors.New("add needs -key and at least one FILE")
+	}
+	c, cr, priv, err := newClient(*keyPath)
+	if err != nil {
+		return err
+	}
+	src, err := hex.DecodeString(cr.SourceID)
+	if err != nil {
+		return err
+	}
 	if *objHex == "" {
-		rand.Read(obj)
-	} else if obj, err = hex.DecodeString(*objHex); err != nil {
-		return err
+		var resp struct {
+			ObjectID string `json:"object_id"`
+		}
+		if err := c.do("POST", "/v0/objects", "", nil, &resp); err != nil {
+			return err
+		}
+		*objHex = resp.ObjectID
+		fmt.Printf("new object %s\n", *objHex)
 	}
-
-	statePath := strings.TrimSuffix(*keyPath, ".key") + ".state.json"
-	st, err := loadState(statePath)
+	obj, err := hex.DecodeString(*objHex)
 	if err != nil {
 		return err
 	}
-	head := st.Objects[hex.EncodeToString(obj)]
-	if head == nil {
-		head = &objectHead{}
-		st.Objects[hex.EncodeToString(obj)] = head
-	}
-
-	ctx := context.Background()
-	reg, err := registry.Open(ctx, registry.Config{
-		Dir: *dataDir, Signer: signer, Verifier: verifier,
-		Keys: registry.StaticKeys(priv.Public().(ed25519.PublicKey)),
-	})
-	if err != nil {
-		return err
-	}
-	defer reg.Close(ctx)
+	kid := envelope.KeyID(priv.Public().(ed25519.PublicKey))
 
 	for _, path := range fs.Args() {
 		content, err := os.ReadFile(path)
@@ -319,36 +376,62 @@ func add(args []string) error {
 		}
 		salt := make([]byte, 32)
 		rand.Read(salt)
-		now := time.Now().UnixMilli()
-		p := envelope.Payload{
-			Version: envelope.Version, Source: src, Object: obj,
-			ObjectSeq: head.Next, KeySeq: st.NextKeySeq, Time: &now,
-			Digest: envelope.Digest{Alg: envelope.AlgSHA256, Value: digest(salt, content)},
-		}
-		if head.Prev != "" {
-			if p.Prev, err = hex.DecodeString(head.Prev); err != nil {
+		var raw []byte
+		var conf api.Confirmation
+		for attempt := 0; ; attempt++ {
+			// Read the heads, sign, submit. A conflict means another
+			// writer moved a head: re-read and re-sign once more.
+			var o struct {
+				NextOSeq uint64  `json:"next_oseq"`
+				LastHash *string `json:"last_hash"`
+			}
+			if err := c.do("GET", "/v0/objects/"+*objHex, "", nil, &o); err != nil {
 				return err
 			}
+			var me struct {
+				Keys []api.KeyInfo `json:"keys"`
+			}
+			if err := c.do("GET", "/v0/sources/me", "", nil, &me); err != nil {
+				return err
+			}
+			var kseq *uint64
+			for _, k := range me.Keys {
+				if k.KeyID == hex.EncodeToString(kid[:]) {
+					kseq = k.NextKSeq
+				}
+			}
+			if kseq == nil {
+				return errors.New("this key is not registered for the source in the credentials file")
+			}
+			now := time.Now().UnixMilli()
+			p := envelope.Payload{
+				Version: envelope.Version, Source: src, Object: obj, ObjectSeq: o.NextOSeq, KeySeq: *kseq, Time: &now,
+				Digest: envelope.Digest{Alg: envelope.AlgSHA256, Value: digest(salt, content)},
+			}
+			if o.LastHash != nil {
+				if p.Prev, err = hex.DecodeString(*o.LastHash); err != nil {
+					return err
+				}
+			}
+			if raw, err = envelope.Sign(p, priv); err != nil {
+				return err
+			}
+			err = c.do("POST", "/v0/events", "application/cose", raw, &conf)
+			var ae *apiErr
+			if errors.As(err, &ae) && ae.Status == http.StatusConflict && attempt < 3 {
+				continue
+			}
+			if err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			break
 		}
-		raw, err := envelope.Sign(p, priv)
-		if err != nil {
-			return err
-		}
-		c, err := reg.Submit(ctx, raw)
-		if err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-		r := receipt{Envelope: raw, Salt: salt, LeafIndex: c.LeafIndex, TreeHead: string(c.TreeHead), InclusionProof: c.InclusionProof}
+		r := receipt{Envelope: raw, Salt: salt, LeafIndex: conf.LeafIndex, TreeHead: conf.TreeHead, InclusionProof: conf.InclusionProof}
 		b, _ := json.MarshalIndent(r, "", "  ")
 		if err := os.WriteFile(path+".receipt.json", append(b, '\n'), 0o600); err != nil {
 			return err
 		}
-		head.Next, head.Prev = head.Next+1, hex.EncodeToString(c.EnvelopeHash)
-		st.NextKeySeq++
-		if err := saveState(statePath, st); err != nil {
-			return err
-		}
-		fmt.Printf("%s  object %x  oseq %d  leaf %d\n", path, obj, p.ObjectSeq, c.LeafIndex)
+		fmt.Printf("%s  object %s  leaf %d  receipt %s.receipt.json\n", path, *objHex, conf.LeafIndex, path)
 	}
 	return nil
 }

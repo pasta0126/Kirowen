@@ -14,25 +14,22 @@ Kirowen guarantees that a source made a statement and that the statement has not
 
 ## Status
 
-Phase 0 (proof of concept). The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). It runs end to end on a local directory; there is no network API yet.
+Alpha. The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). The registry runs with a public HTTP API ([docs/api-v0.md](docs/api-v0.md)) and anyone can register.
 
 ```sh
-go test ./...
 go build ./cmd/kirowen
 
-./kirowen keygen-log -origin example.com/log/v0 -out log   # registry key
-./kirowen keygen -out sensor                               # source key
-./kirowen add -data data -log-key log.key -key sensor.key reading.txt
-./kirowen verify -log data/log -log-pub log.pub -pub sensor.pub reading.txt.receipt.json reading.txt
-./kirowen audit -log data/log -log-pub log.pub
+./kirowen keygen -out me                 # your source key, kept locally
+./kirowen register -key me.key           # self-service sign-up; writes me.cred.json (token)
+./kirowen add -key me.key reading.txt    # writes reading.txt.receipt.json
+./kirowen verify -log https://kirowen.northernarchive.com/log/v0/ \
+    -log-pub keys-public/kirowen.northernarchive.com-log-v0.pub -pub me.pub \
+    reading.txt.receipt.json reading.txt
 ```
 
-`add` writes `reading.txt.receipt.json` (envelope, salt, leaf index, signed tree head and inclusion proof). With it and the file, anyone holding the two public keys can verify the event. `data/log` is the public log (C2SP tiles); it can be served as static files, and `-log` also accepts an `https://` URL.
+The receipt holds the envelope, the salt, the leaf index, the signed tree head and the inclusion proof. With it and the file, anyone holding the two public keys can verify the event. Your content never leaves your machine: only its salted hash is sent.
 
-- [Concept](docs/concept-v0.1.md): goals and requirements.
-- [Technical analysis](docs/technical-analysis.md): threat model, architecture and decisions.
-- [Envelope format v0](docs/envelope-v0.md): wire format and initial parameters.
-- [Governance and operations](docs/governance-and-operations.md): legal, sustainability and naming.
+Development: `go test ./...`.
 
 ## Public log
 

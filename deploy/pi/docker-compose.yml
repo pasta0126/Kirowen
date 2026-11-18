@@ -1,14 +1,40 @@
-# Reference deployment of the public Kirowen log on a single host behind
-# Traefik (external "proxy" network, "websecure" entrypoint, "le" ACME
-# resolver).
+# Reference deployment of Kirowen on a single host behind Traefik
+# (external "proxy" network, "websecure" entrypoint, "le" ACME resolver).
 #
-# Only the public log (tiles, entry bundles, checkpoint) is served. The
-# envelopes in data/envelopes and the registry key in keys/ are never
-# mounted into the web container.
-#
-# Writes happen out of band in phase 0: `kirowen add` run on the host.
+# - api: kirowend, the registry and HTTP API (kirowen-api.<domain>). It is
+#   the only writer of data/.
+# - log: nginx serving only the public log, read-only (kirowen.<domain>).
+#   Envelopes, state.db and keys are never mounted into it.
 
 services:
+  api:
+    image: alpine:3.22
+    container_name: kirowen-api
+    restart: unless-stopped
+    user: "1001:1001"
+    read_only: true
+    command:
+      - /app/kirowend
+      - -data=/data
+      - -log-key=/keys/log.key
+      - -system-key=/keys/system.key
+      - -listen=:8080
+      - -log-url=https://kirowen.northernarchive.com/log/v0/
+      - -trust-proxy
+    volumes:
+      - ./bin:/app:ro
+      - ./keys:/keys:ro
+      - ./data:/data
+    stop_grace_period: 40s
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kirowen-api.rule=Host(`kirowen-api.northernarchive.com`)"
+      - "traefik.http.routers.kirowen-api.entrypoints=websecure"
+      - "traefik.http.routers.kirowen-api.tls.certresolver=le"
+      - "traefik.http.services.kirowen-api.loadbalancer.server.port=8080"
+
   log:
     image: nginx:1.29-alpine
     container_name: kirowen-log

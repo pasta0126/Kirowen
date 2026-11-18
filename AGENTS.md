@@ -12,16 +12,18 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 
 ## Current status
 
-**Phase 0 (proof of concept) in progress.** Design docs are below. Code so far:
+**Alpha: registry and public API running.** Design docs are below. Code so far:
 
 - `internal/dcbor`: strict deterministic CBOR (decode only if re-encoding reproduces the input).
 - `envelope`: COSE_Sign1 envelope, signing, parsing (stateless acceptance rules) and signature verification. Test vectors are in `envelope/testdata/vectors.json`; regenerate them with `go test ./envelope -run TestVectors -update` only when the format changes on purpose.
 - `leaf`: event and checkpoint leaves, and the RFC 6962 leaf hash.
 - `registry`: the sequencer on Tessera's POSIX driver. It stores envelopes outside the tree, inserts a checkpoint leaf after every 1,000 ordinary leaves, recovers that state on restart, and returns confirmations.
+- `state`: SQLite state (sources, token hashes, keys, objects and heads, envelope index).
+- `api`: the HTTP API (`docs/api-v0.md`): self-service registration with a token per source, objects, events with the stateful acceptance rules, reads, quotas, crash reconciliation.
 - `verify`: tree head, inclusion and consistency checks, and a full log audit (a monitor).
-- `cmd/kirowen`: the phase 0 CLI (`keygen-log`, `keygen`, `add`, `verify`, `audit`).
+- `cmd/kirowend`: the registry daemon. `cmd/kirowen`: the client CLI (`keygen-log`, `keygen`, `register`, `object`, `add`, `verify`, `audit`).
 
-Phase 0 limits (deliberate, see `docs/technical-analysis.md` §17): no network API; source keys come from a static list; the stateful acceptance rules (object ownership, `oseq`/`prev`, `kseq`, `refs`, quotas, idempotency) are not enforced by the registry yet; source ids are chosen by the client.
+**Registration and writes happen only through the API**, for everyone including the operator. Do not add commands that write to a registry directory directly.
 
 Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 
@@ -51,9 +53,10 @@ Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 17. Only free external anchoring (e.g. OpenTimestamps). No Ethereum or any anchoring that charges per entry or per transaction.
 18. No cryptocurrency or token. Operating cost is kept minimal, with the aspiration of offering a free service.
 19. **Name: Kirowen** is kept (decided 2026-11-18), accepting the known similarity to Amazon's Kiro (`docs/governance-and-operations.md` §6).
-20. **Operator and deployment (2026-11-18):** a personal project, operated by the project lead and self-hosted on their own Raspberry Pi. Initially a single source. Storage for now: Tessera's POSIX driver on local disk. No funding; sole decision-maker. Jurisdiction: Spain (EU).
+20. **Operator and deployment (2026-11-18):** a personal project, operated by the project lead and self-hosted on their own Raspberry Pi. Storage for now: Tessera's POSIX driver on local disk. No funding; sole decision-maker. Jurisdiction: Spain (EU).
 21. End-to-end encryption is not required (hash-only). The verifiable map is deferred to phase 3.
-22. **Log origin (2026-11-18):** `kirowen.northernarchive.com/log/v0`, served at `https://kirowen.northernarchive.com/log/v0/`. The write API (phase 2) will live at `kirowen-api.northernarchive.com`. Kept for now; it may be revisited later, knowing that a new origin means a new log.
+22. **Log origin (2026-11-18):** `kirowen.northernarchive.com/log/v0`, served at `https://kirowen.northernarchive.com/log/v0/`. The API lives at `kirowen-api.northernarchive.com`. Kept for now; it may be revisited later, knowing that a new origin means a new log.
+23. **Self-service registration via the API (2026-11-18):** anyone can register a source; each gets a bearer token (required for writes, optional for reads; no token = anonymous, public data only). Events stay signed by the source key. No operator access (e.g. SSH) is used to register or write, not even by the operator. State in SQLite.
 
 ## Open decisions (do not assume)
 

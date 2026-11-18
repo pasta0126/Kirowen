@@ -67,7 +67,8 @@ type Config struct {
 	Signer note.Signer
 	// Verifier verifies the Signer's tree heads.
 	Verifier note.Verifier
-	// Keys resolves source keys.
+	// Keys resolves source keys for Submit. Optional: the API server
+	// validates envelopes itself and calls AppendEvent.
 	Keys KeyResolver
 	// CheckpointEvery defaults to DefaultCheckpointEvery.
 	CheckpointEvery uint64
@@ -108,8 +109,8 @@ type Confirmation struct {
 
 // Open opens or creates a registry in cfg.Dir.
 func Open(ctx context.Context, cfg Config) (*Registry, error) {
-	if cfg.Signer == nil || cfg.Verifier == nil || cfg.Keys == nil {
-		return nil, errors.New("registry: Signer, Verifier and Keys are required")
+	if cfg.Signer == nil || cfg.Verifier == nil {
+		return nil, errors.New("registry: Signer and Verifier are required")
 	}
 	if cfg.Signer.Name() != cfg.Verifier.Name() {
 		return nil, errors.New("registry: signer and verifier names differ")
@@ -216,11 +217,16 @@ func (r *Registry) readLeaf(ctx context.Context, i, size uint64) (*leaf.Leaf, er
 }
 
 // Submit validates and appends an envelope and blocks until it is
-// covered by a published tree head. It returns the confirmation.
+// covered by a published tree head. It checks only the stateless rules
+// and the signature (with Config.Keys); the API server adds the stateful
+// rules on top of AppendEvent and Prove.
 func (r *Registry) Submit(ctx context.Context, raw []byte) (*Confirmation, error) {
 	env, err := envelope.Parse(raw)
 	if err != nil {
 		return nil, err
+	}
+	if r.cfg.Keys == nil {
+		return nil, ErrUnknownKey
 	}
 	pub, err := r.cfg.Keys(env.KeyID)
 	if err != nil {
@@ -229,6 +235,23 @@ func (r *Registry) Submit(ctx context.Context, raw []byte) (*Confirmation, error
 	if err := env.Verify(pub); err != nil {
 		return nil, err
 	}
+	future, err := r.AppendEvent(ctx, env)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := future()
+	if err != nil {
+		return nil, err
+	}
+	return r.Prove(ctx, env.Hash[:], idx.Index)
+}
+
+// AppendEvent stores an already validated envelope and appends its event
+// leaf. It returns as soon as the leaf is queued; the future resolves to
+// its index. If this leaf completes a run of CheckpointEvery ordinary
+// leaves, AppendEvent also appends the checkpoint leaf, which blocks for
+// about one batch.
+func (r *Registry) AppendEvent(ctx context.Context, env *envelope.Envelope) (tessera.IndexFuture, error) {
 	// Store the envelope before its leaf exists, so that a leaf never
 	// points to an envelope we failed to keep.
 	if err := r.storeEnvelope(env); err != nil {
@@ -238,25 +261,29 @@ func (r *Registry) Submit(ctx context.Context, raw []byte) (*Confirmation, error
 	if err != nil {
 		return nil, err
 	}
-
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	future := r.add(ctx, tessera.NewEntry(lb))
 	r.ordinary++
-	var cpErr error
 	if r.ordinary == r.cfg.CheckpointEvery {
 		// The checkpoint leaf goes right after this event, so wait for
-		// this event's index (futures are memoized; Await reuses it).
-		var idx tessera.Index
-		if idx, cpErr = future(); cpErr == nil {
-			cpErr = r.appendCheckpointLocked(ctx, idx.Index+1)
+		// this event's index (futures are memoized).
+		idx, err := future()
+		if err != nil {
+			return nil, err
+		}
+		if err := r.appendCheckpointLocked(ctx, idx.Index+1); err != nil {
+			return nil, err
 		}
 	}
-	r.mu.Unlock()
-	if cpErr != nil {
-		return nil, cpErr
-	}
+	return future, nil
+}
 
-	idx, cp, err := r.awaiter.Await(ctx, future)
+// Prove waits until leaf index is covered by a published tree head and
+// returns the confirmation for it.
+func (r *Registry) Prove(ctx context.Context, envelopeHash []byte, index uint64) (*Confirmation, error) {
+	known := func() (tessera.Index, error) { return tessera.Index{Index: index}, nil }
+	_, cp, err := r.awaiter.Await(ctx, known)
 	if err != nil {
 		return nil, err
 	}
@@ -268,16 +295,45 @@ func (r *Registry) Submit(ctx context.Context, raw []byte) (*Confirmation, error
 	if err != nil {
 		return nil, err
 	}
-	proof, err := pb.InclusionProof(ctx, idx.Index)
+	proof, err := pb.InclusionProof(ctx, index)
 	if err != nil {
 		return nil, err
 	}
 	return &Confirmation{
-		EnvelopeHash:   env.Hash[:],
-		LeafIndex:      idx.Index,
+		EnvelopeHash:   envelopeHash,
+		LeafIndex:      index,
 		TreeHead:       cp,
 		InclusionProof: proof,
 	}, nil
+}
+
+// EventHashes returns the envelope hashes of the event leaves at
+// positions [from, size), keyed by hash, where size is the integrated
+// tree size. It is used to reconcile registry state after a crash.
+func (r *Registry) EventHashes(ctx context.Context, from uint64) (map[[envelope.HashSize]byte]uint64, error) {
+	size, err := r.reader.IntegratedSize(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[[envelope.HashSize]byte]uint64{}
+	for i := from; i < size; {
+		b, err := client.GetEntryBundle(ctx, r.fetch.ReadEntryBundle, i/256, size)
+		if err != nil {
+			return nil, err
+		}
+		for j := i % 256; j < uint64(len(b.Entries)) && i < size; j, i = j+1, i+1 {
+			l, err := leaf.Parse(b.Entries[j])
+			if err != nil {
+				return nil, fmt.Errorf("registry: leaf %d: %w", i, err)
+			}
+			if l.Type == leaf.TypeEvent {
+				var h [envelope.HashSize]byte
+				copy(h[:], l.EnvelopeHash)
+				out[h] = i
+			}
+		}
+	}
+	return out, nil
 }
 
 // appendCheckpointLocked appends the internal checkpoint leaf at position
