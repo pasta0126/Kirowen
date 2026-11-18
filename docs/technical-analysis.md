@@ -355,9 +355,9 @@ Suggested initial model: each source owns its objects and grants read access thr
 - **Log as static files (tiles, C2SP `tlog-tiles`).** The tree and leaves are published as immutable files in object storage. Reads scale through a CDN at very low cost, and **anyone can mirror the log** by copying files. That provides durability independent of the operator.
 - **Separate storage for public and private data:**
   - Public log (leaves and tree): freely replicable.
-  - Envelopes and content: controlled, encrypted replicas with at least two providers or regions.
+  - Envelopes: controlled replicas with at least two providers or regions (content is never stored, see hash-only).
 - **What is lost if the operator disappears:** private content, unless the sources keep their own copy, which they should. The public proofs survive in mirrors and witnesses.
-- **Retention:** an explicit policy is needed, e.g. content kept for `X` years and then deleted, leaves kept indefinitely because they are tiny. Still open (concept §20).
+- **Retention:** an explicit policy is needed, e.g. content kept for `X` years and then deleted, leaves kept indefinitely because they are tiny. **Decided:** leaves forever, envelopes up to 5 years (`docs/envelope-v0.md` §9).
 
 ---
 
@@ -496,7 +496,7 @@ These are **proposals** that need confirmation unless marked **Accepted**.
 1. Core built on a **Merkle transparency log** (RFC 6962/9162, C2SP); no blockchain.
 2. SHA-256 and Ed25519 by default, with algorithm identifiers.
 3. **Events are signed by the source**, and source keys are registered in the log itself.
-4. **Leaves are commitments.** Envelope and content live outside the tree. Content mode is chosen per event (§16, Q4). **Accepted.**
+4. **Leaves are commitments.** Envelopes live outside the tree, and content never reaches the registry (hash-only, see "Content and pricing" in §16). **Accepted.**
 5. Internal checkpoints every 1,000 ordinary events (decision 11) **and** periodic tree heads to witnesses, only when there are new ordinary events (no-self-validation rule, §5.4). **Accepted.**
 6. **External witnesses** following C2SP `tlog-witness`, rolled out in phases (§16, Q6). **Accepted.**
 7. Per-object history via `object_seq` and `prev_object` in the envelope; the verifiable map is deferred.
@@ -511,7 +511,9 @@ Status as of 2026-11-17.
 1. **Public leaves or only checkpoints?** → **Decided: leaves are public.** Anyone can mirror and monitor the log. Leaves contain only envelope hashes, never content.
 2. **Explicit linear link to the previous leaf?** → **Decided: Merkle tree only.** Decision 4 (cryptographic chaining) is fulfilled by the Merkle tree (§5.1).
 3. **Confirmation latency?** → **Decided: ~1 s**, synchronous, batched (§5.6, variant 3).
-4. **Content mode and size?** → **Decided: the source chooses, per event, between two modes:**
+4. **Content mode and size?** → **Superseded (2026-11-17) by hash-only** (see "Content and pricing" below). The original two-mode decision and the discussion that followed are kept for reference only.
+
+   *Original decision (superseded): the source chooses, per event, between two modes:*
    - **Plain content:** the source sends the content in any format (JSON, YAML, plain text, bytes). The registry stores it, and the envelope commits to its hash.
    - **Hash only:** the source sends only a hash of its content. **The registry never receives or stores salts or the original content.** The source is solely responsible for keeping the content and the salt, and for using a salt when the content is guessable (§7.2).
 
@@ -541,13 +543,13 @@ Status as of 2026-11-17.
      - a data-processing agreement (GDPR processor) with paying sources;
      - availability and durability commitments for stored content;
      - clear terms that **a lost key means lost data**, because we cannot decrypt or recover it.
-5. **Content retention?** → **Decided: retention period chosen per source**, with a service-wide maximum (value open). It does not affect the tree: only content outside the tree expires, while leaves and proofs are kept forever (§7.2, §10). Indefinite retention is ruled out. Envelope retention is still open.
+5. **Content retention?** → **Decided: retention period chosen per source**, with a service-wide maximum (value open). It does not affect the tree: only content outside the tree expires, while leaves and proofs are kept forever (§7.2, §10). Indefinite retention is ruled out. Envelope retention: decided, up to 5 years (`docs/envelope-v0.md` §9).
 6. **Who runs witnesses?** → **Decided: phased combination.**
    - From day one: public anchoring (OpenTimestamps plus a public repository), plus a witness of our own **for protocol testing only**. It gives no independent guarantee.
    - As soon as possible: apply to the public witness network (witness-network.org / OmniWitness / ArmoredWitness, §18). One independent witness is enough to meet scenario 6.
    - As the project grows: an easy-to-deploy witness for participants, plus sympathetic third parties.
 7. **Anonymous sources?** → **Decided: registration is mandatory.** Self-service sign-up is still possible.
-8. **Is completeness of an object's history provable to third parties (verifiable map)?** → Open.
+8. **Is completeness of an object's history provable to third parties (verifiable map)?** → **Deferred (2026-11-18).** Back-links (`object_seq`, `prev_object`) already prove there are no gaps in a returned history. Only a verifiable map can also prove that the latest event was returned (§6.2). This matters only when third parties rely on object histories, which does not happen while there is a single source. Revisit in phase 3.
 
 **Object identifiers and searchable metadata — Accepted (2026-11-17):**
 - **The registry assigns its own opaque object identifier** (e.g. UUIDv7) when an object is first used. Sources never need to use emails or other real-world identifiers as object ids. This refines §6.1: `(source, object_id)` becomes `(source, registry-assigned object_id)`.
@@ -558,7 +560,7 @@ Status as of 2026-11-17.
   - optionally, **blind indexing**: the source sends `HMAC(source_key, value)` instead of the value. It can still search by exact match, and the registry never sees the real value.
 - **The event value is a fixed-length digest with an algorithm identifier** (e.g. exactly 32 bytes for SHA-256), not a free-form field. Otherwise sources could put plain content in it and bypass hash-only mode.
 - **The registry is agnostic to what the hashed content means.** It does not know whether a hash represents a sensor reading or anything else.
-9. **Is end-to-end encryption a requirement?** → Open. A source that does not want the registry to see its content can already use hash-only mode.
+9. **Is end-to-end encryption a requirement?** → **Decided (2026-11-18): no.** The registry never receives content (hash-only), so there is nothing to encrypt end to end.
 10. **Implementation language?** → **Decided (2026-11-17): Go.** It has the most mature ecosystem: Trillian Tessera, Sigsum, the C2SP reference libraries and OmniWitness are all written in Go. Use **Tessera**, not Trillian v1, which is in maintenance mode.
 
 **Envelope format, parameters and retention — Decided (2026-11-17):** see `docs/envelope-v0.md`.
@@ -576,6 +578,17 @@ Status as of 2026-11-17.
   - **OpenTimestamps** is free for us because public calendar servers aggregate many hashes into one Bitcoin transaction and pay its fee themselves.
   - It depends on those calendars staying available, so we should submit to several of them.
   - Only checkpoints are anchored, never individual events.
+
+**Operator and deployment — Decided (2026-11-18):**
+- **Operator:** the project lead, personally. There is no organization.
+- **Hosting:** self-hosted on the operator's own Raspberry Pi.
+- **Sources:** initially a single source (the operator). Registration and quotas still apply, so opening to more sources later needs no design change.
+- **Storage (for now):** Tessera's POSIX driver on the Pi's local disk. A production backend and replication stay open until there are other users.
+- **Funding:** none; self-funded. The running cost is the Pi's electricity.
+- **Points to keep in mind:**
+  - **Durability:** a single disk on a single machine is a single point of failure. SD cards wear out. An SSD and an off-site copy of the tiles are recommended. Leaves and tiles are public, so copying them anywhere is safe.
+  - **Witnesses (phase 1):** external witnesses and the public witness network must be able to reach the log's checkpoints over the internet. Exposing a home Pi needs a decision (port forwarding, a tunnel, or pushing tiles and checkpoints to free static hosting).
+  - **Trust:** a single operator does not weaken the model. Scenario 6 always depended on independent witnesses, never on the operator.
 
 ## 17. Phased plan
 
@@ -598,7 +611,7 @@ Status as of 2026-11-17.
 **Phase 3: hardening.**
 - Retention and erasure policy; legal review.
 - KMS/HSM, replicas, high availability if justified.
-- Verifiable map and end-to-end encryption if justified.
+- Verifiable map if justified.
 
 ---
 

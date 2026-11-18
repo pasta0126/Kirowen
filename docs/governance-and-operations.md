@@ -16,6 +16,8 @@
 
 **Recommendation:** stay a personal open-source project while there is only code and no public service. Create a **non-profit association** before opening a public service to third parties. ⚖️
 
+**Decided (2026-11-18): personal project.** The project lead operates Kirowen personally, self-hosted on their own Raspberry Pi, and is initially its only user. Revisit before opening the service to third parties.
+
 **Jurisdiction — Decided (2026-11-17): Spain (EU).** This implies:
 - **GDPR plus Spain's LOPDGDD**, with the AEPD as supervisory authority.
 - **LSSI (Ley 34/2002):** a public web service needs a legal notice ("aviso legal").
@@ -56,7 +58,9 @@ Publicly available open-source cryptographic software is generally exempt from E
 
 ## 3. Sustainability
 
-The decision is **free for everyone, with the intention of keeping it that way**. Expected costs are low (§11 of the technical analysis: tens of euros per month at 1 million events per day).
+The decision is **free for everyone, with the intention of keeping it that way**.
+
+**Decided (2026-11-18): no funding.** The project is self-funded; the only running cost is the Raspberry Pi's electricity. The options below are for later, if the service grows. Expected costs are low (§11 of the technical analysis: tens of euros per month at 1 million events per day).
 
 Funding options that keep the service free:
 
@@ -77,7 +81,9 @@ Committing to this publicly is itself a trust signal.
 
 ## 4. Governance
 
-- **Now:** the project lead decides, with decisions recorded in the repository (`docs/technical-analysis.md` §16, `AGENTS.md`).
+"Governance" means who decides the rules (parameters, keys, admitting sources, changes to the format) and how those decisions are made and published.
+
+- **Now (decided 2026-11-18):** the project lead is the sole decision-maker, with decisions recorded in the repository (`docs/technical-analysis.md` §16, `AGENTS.md`).
 - **Later:** if there are several maintainers or relying organizations, a small steering group with a public decision process.
 - **Operator transparency, which is part of the trust model:**
   - publish the registry's public keys and how they are generated and stored;
@@ -110,7 +116,7 @@ Committing to this publicly is itself a trust signal.
 
 ## 8. Open questions
 
-1. Who operates Kirowen when the public service opens: you personally, or an association?
+1. ~~Who operates Kirowen~~ → the project lead, personally, on their own Raspberry Pi (for now). Revisit before a public service opens.
 2. ~~Jurisdiction~~ → Spain (EU).
 3. ~~Grants~~ → not for now.
 4. ~~Keep "Kirowen" or rename~~ → keep "Kirowen".

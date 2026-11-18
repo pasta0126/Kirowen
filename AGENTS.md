@@ -40,10 +40,12 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 17. Only free external anchoring (e.g. OpenTimestamps). No Ethereum or any anchoring that charges per entry or per transaction.
 18. No cryptocurrency or token. Operating cost is kept minimal, with the aspiration of offering a free service.
 19. **Name: Kirowen** is kept (decided 2026-11-18), accepting the known similarity to Amazon's Kiro (`docs/governance-and-operations.md` §6).
+20. **Operator and deployment (2026-11-18):** a personal project, operated by the project lead and self-hosted on their own Raspberry Pi. Initially a single source. Storage for now: Tessera's POSIX driver on local disk. No funding; sole decision-maker. Jurisdiction: Spain (EU).
+21. End-to-end encryption is not required (hash-only). The verifiable map is deferred to phase 3.
 
 ## Open decisions (do not assume)
 
-Storage backend for production, replication, operating entity and jurisdiction, governance and funding.
+Production storage backend and replication beyond the Raspberry Pi; how the Pi is exposed to witnesses (phase 1); operating entity and governance if the service opens to third parties.
 
 `docs/technical-analysis.md` §15 contains **proposals**, not decisions, except items marked **Accepted**. Do not treat the others as requirements until the user confirms them.
 

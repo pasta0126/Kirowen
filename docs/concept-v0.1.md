@@ -446,12 +446,14 @@ These decisions are part of the project's current definition.
 14. We will try to prevent historical tampering from going unnoticed by verifiers that hold authentic proofs.
 15. The architecture must separate data integrity, truthfulness of statements, availability and durability.
 16. There will be no associated cryptocurrency or token.
-17. The choice of blockchain, cryptographic database or another solution remains open.
+17. The choice of blockchain, cryptographic database or another solution remains open. *(Since decided: a Merkle transparency log, no blockchain. See `docs/technical-analysis.md` §15.)*
 18. Operating cost must be kept as low as possible, with the aspiration of offering a free service.
 
 ---
 
 ## 20. Open questions
+
+> **Status update (2026-11-18):** most of these have since been decided. The current list of decisions taken and still open lives in `AGENTS.md` and `docs/technical-analysis.md` §16. This section is kept as written in v0.1.
 
 We have not decided:
 
