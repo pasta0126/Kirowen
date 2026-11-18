@@ -83,7 +83,18 @@ The registry accepts an envelope only if **all** of the following hold:
 
 A source with several independent writers should give each writer its own key, so `kseq` never has to be coordinated between them.
 
-### 3.4 Content digest (client side)
+### 3.4 Encoding details
+
+These points were fixed while implementing the proof of concept (`envelope/`):
+
+- The envelope is a **tagged** COSE_Sign1 message (CBOR tag 18). Untagged messages are rejected.
+- The **unprotected header must be an empty map**, so every header value is covered by the signature.
+- **Detached payloads are not allowed.** `external_aad` is empty.
+- **Strict decoding:** every layer (the message, the protected header and the payload) is accepted only if re-encoding the decoded value reproduces the input byte for byte. This rejects unsorted keys, non-shortest integers, indefinite lengths, unknown keys, missing required keys and trailing bytes.
+- Optional fields are **absent**, never empty. For example, `refs` with zero entries is rejected, and `prev` must be absent when `oseq = 0`.
+- Test vectors (fixed Ed25519 seeds, so they are reproducible): `envelope/testdata/vectors.json`.
+
+### 3.5 Content digest (client side)
 
 The recommended construction, applied by the client library:
 
@@ -131,6 +142,8 @@ After every 1,000 ordinary leaves, the sequencer appends a `checkpoint` leaf. It
 | 3 | `prev_size` | uint | `size` of the previous checkpoint leaf (`0` for the first). |
 | 4 | `prev_root` | bstr (32) | `root` of the previous checkpoint leaf (absent for the first). |
 | 5 | `note` | bstr | The signed C2SP checkpoint for size `N`, as sent to witnesses, with any cosignatures already collected. |
+
+Validation: `root` and `prev_root` are 32 bytes, `size > prev_size`, `prev_root` is present exactly when `prev_size > 0`, and `note` is not empty.
 
 Implementation note: before it can append the checkpoint leaf at position `N`, the sequencer must have integrated exactly `N` leaves. It therefore pauses intake for one batch every 1,000 ordinary events. The cost is negligible.
 

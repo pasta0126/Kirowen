@@ -12,7 +12,13 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 
 ## Current status
 
-**Analysis and design phase. There is no code yet.**
+**Phase 0 (proof of concept) in progress.** Design docs are below. Code so far:
+
+- `internal/dcbor`: strict deterministic CBOR (decode only if re-encoding reproduces the input).
+- `envelope`: COSE_Sign1 envelope, signing, parsing (stateless acceptance rules) and signature verification. Test vectors are in `envelope/testdata/vectors.json`; regenerate them with `go test ./envelope -run TestVectors -update` only when the format changes on purpose.
+- `leaf`: event and checkpoint leaves, and the RFC 6962 leaf hash.
+
+Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 
 - `docs/concept-v0.1.md` is the concept document and the source of the requirements.
 - `docs/envelope-v0.md` is the draft wire format (envelope, leaves, checkpoints) and the initial parameters.

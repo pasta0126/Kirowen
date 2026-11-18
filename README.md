@@ -14,7 +14,11 @@ Kirowen guarantees that a source made a statement and that the statement has not
 
 ## Status
 
-Design phase; no code yet. The implementation will be in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera).
+Phase 0 (proof of concept) has started. The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). So far: the envelope and leaf formats, with test vectors.
+
+```
+go test ./...
+```
 
 - [Concept](docs/concept-v0.1.md): goals and requirements.
 - [Technical analysis](docs/technical-analysis.md): threat model, architecture and decisions.
