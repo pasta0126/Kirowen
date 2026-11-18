@@ -29,7 +29,12 @@ Create the registry key on the host, once:
 bin/kirowen keygen-log -origin kirowen.northernarchive.com/log/v0 -out keys/log
 ```
 
-Start the web container: `docker compose up -d`.
+Create the empty log, then start the web container:
+
+```sh
+bin/kirowen init -data data -log-key keys/log.key
+docker compose up -d
+```
 
 Check from anywhere:
 

@@ -31,6 +31,7 @@ import (
 const usage = `usage:
   kirowen keygen-log -origin ORIGIN -out NAME     write NAME.key (secret) and NAME.pub
   kirowen keygen     -out NAME                    write a source key: NAME.key (secret) and NAME.pub
+  kirowen init   -data DIR -log-key F            create an empty log (publishes the size-0 tree head)
   kirowen add    -data DIR -log-key F -key F [-object HEX] FILE...
                                                   record files; writes FILE.receipt.json
   kirowen verify -log DIR|URL -log-pub F -pub F RECEIPT [FILE]
@@ -44,7 +45,7 @@ func main() {
 		os.Exit(2)
 	}
 	cmds := map[string]func([]string) error{
-		"keygen-log": keygenLog, "keygen": keygen, "add": add, "verify": verifyCmd, "audit": audit,
+		"keygen-log": keygenLog, "keygen": keygen, "init": initCmd, "add": add, "verify": verifyCmd, "audit": audit,
 	}
 	cmd, ok := cmds[os.Args[1]]
 	if !ok {
@@ -221,6 +222,36 @@ func digest(salt, content []byte) []byte {
 	h.Write(salt)
 	h.Write(content)
 	return h.Sum(nil)
+}
+
+func initCmd(args []string) error {
+	fs := flag.NewFlagSet("init", flag.ExitOnError)
+	dataDir := fs.String("data", "", "registry data directory")
+	logKey := fs.String("log-key", "", "log signing key (from keygen-log)")
+	fs.Parse(args)
+	if *dataDir == "" || *logKey == "" {
+		return errors.New("init needs -data and -log-key")
+	}
+	signer, verifier, err := readLogKeys(*logKey, strings.TrimSuffix(*logKey, ".key")+".pub")
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	reg, err := registry.Open(ctx, registry.Config{
+		Dir: *dataDir, Signer: signer, Verifier: verifier, Keys: registry.StaticKeys(),
+	})
+	if err != nil {
+		return err
+	}
+	if err := reg.Close(ctx); err != nil {
+		return err
+	}
+	cp, err := os.ReadFile(reg.LogDir() + "/checkpoint")
+	if err != nil {
+		return err
+	}
+	fmt.Print(string(cp))
+	return nil
 }
 
 func add(args []string) error {
