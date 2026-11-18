@@ -149,7 +149,7 @@ Implementation note: before it can append the checkpoint leaf at position `N`, t
 
 ### 5.2 Published tree heads (external)
 
-- Format: C2SP `tlog-checkpoint` signed by the registry key (`signed-note`). The origin line is `<domain>/log/v0`; the domain depends on the final name.
+- Format: C2SP `tlog-checkpoint` signed by the registry key (`signed-note`). The origin line is `kirowen.northernarchive.com/log/v0` (decided 2026-11-18), and the log is served at `https://kirowen.northernarchive.com/log/v0/`. Changing the origin means starting a new log.
 - **No-self-validation rule:** a new tree head is published only if at least one ordinary leaf has been added since the last published one.
 - A tree head is published every `T` seconds (§7) and sent to witnesses using C2SP `tlog-witness`.
 

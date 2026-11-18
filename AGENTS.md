@@ -53,6 +53,7 @@ Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 19. **Name: Kirowen** is kept (decided 2026-11-18), accepting the known similarity to Amazon's Kiro (`docs/governance-and-operations.md` §6).
 20. **Operator and deployment (2026-11-18):** a personal project, operated by the project lead and self-hosted on their own Raspberry Pi. Initially a single source. Storage for now: Tessera's POSIX driver on local disk. No funding; sole decision-maker. Jurisdiction: Spain (EU).
 21. End-to-end encryption is not required (hash-only). The verifiable map is deferred to phase 3.
+22. **Log origin (2026-11-18):** `kirowen.northernarchive.com/log/v0`, served at `https://kirowen.northernarchive.com/log/v0/`. The write API (phase 2) will live at `kirowen-api.northernarchive.com`. Kept for now; it may be revisited later, knowing that a new origin means a new log.
 
 ## Open decisions (do not assume)
 

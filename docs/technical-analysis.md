@@ -583,6 +583,7 @@ Status as of 2026-11-17.
 - **Operator:** the project lead, personally. There is no organization.
 - **Hosting:** self-hosted on the operator's own Raspberry Pi.
 - **Sources:** initially a single source (the operator). Registration and quotas still apply, so opening to more sources later needs no design change.
+- **Log origin:** `kirowen.northernarchive.com/log/v0`; the public log is served from `https://kirowen.northernarchive.com/log/v0/`, and the future write API from `kirowen-api.northernarchive.com`.
 - **Storage (for now):** Tessera's POSIX driver on the Pi's local disk. A production backend and replication stay open until there are other users.
 - **Funding:** none; self-funded. The running cost is the Pi's electricity.
 - **Points to keep in mind:**
