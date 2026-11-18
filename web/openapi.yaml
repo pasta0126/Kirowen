@@ -1,0 +1,373 @@
+openapi: 3.0.3
+info:
+  title: Kirowen API
+  version: v0
+  description: |
+    Kirowen is an open registry of immutable events. Sources send signed envelopes that carry
+    a **hash** of their data, never the data. The registry puts each event into one global,
+    append-only Merkle log and returns a proof of inclusion.
+
+    **This console calls the real API.** What you write here goes into the public log and stays
+    there. It is an alpha: the log may be reset.
+
+    ### Getting started
+
+    1. Register a source on the [home page](/#register). Your browser creates your key and signs the
+       registration. You get a **token** (`kw_…`) and two files to keep.
+    2. Click **Authorize** and paste the token. If you came here from the home page right after
+       registering, it is already filled in.
+    3. Try `GET /v0/sources/me`, then `POST /v0/objects`.
+
+    ### Token and key
+
+    - The **token** says who is calling. You need it to write and to read your private data.
+      Without it you can still read public data.
+    - The **key** signs your events. It never leaves your machine, and the registry never sees it.
+      A token alone cannot create events: each event must be signed by your key.
+
+    ### Events
+
+    An event is a COSE_Sign1 envelope (deterministic CBOR, Ed25519, at most 1 KiB) described in
+    [`docs/envelope-v0.md`](https://github.com/pasta0126/Kirowen/blob/main/docs/envelope-v0.md).
+    This page cannot sign one for you. Create it with the `kirowen` CLI, with your own code, or download one
+    of yours with `GET /v0/envelopes/{hash}` and send it again to see idempotency.
+
+    ### Formats
+
+    Ids and hashes are lowercase hex. Byte strings in JSON (keys, statements, proofs) are base64.
+    Errors are JSON: `{"error": "…"}`, sometimes with extra fields.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+externalDocs:
+  description: Source code and design documents
+  url: https://github.com/pasta0126/Kirowen
+servers:
+  - url: https://kirowen-api.northernarchive.com
+    description: Public alpha
+
+tags:
+  - name: Registry
+    description: Public information about this registry.
+  - name: Sources
+    description: Register and inspect your source.
+  - name: Objects
+    description: Things whose history you record. The registry assigns their ids.
+  - name: Events
+    description: Submit envelopes and get proofs that they are in the log.
+  - name: Keys
+    description: Public key statements.
+
+components:
+  securitySchemes:
+    token:
+      type: http
+      scheme: bearer
+      bearerFormat: kw_…
+      description: The token returned by registration.
+
+  parameters:
+    ObjectId:
+      name: object_id
+      in: path
+      required: true
+      description: Object id (32 hex characters).
+      schema: { type: string, pattern: '^[0-9a-f]{32}$', example: 5b07c1d2e3f4a5b6c7d8e9f0a1b2c3d4 }
+    EnvelopeHash:
+      name: envelope_hash
+      in: path
+      required: true
+      description: SHA-256 of the envelope (64 hex characters).
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+    KeyId:
+      name: key_id
+      in: path
+      required: true
+      description: Key id (64 hex characters).
+      schema: { type: string, pattern: '^[0-9a-f]{64}$', example: 0e4d99283aeb033abf86eb4374ae9d75c87309c1274e4bf29b21e32caa567a17 }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: this endpoint needs a token }
+
+    Confirmation:
+      type: object
+      description: Proof that an envelope is in the log.
+      properties:
+        envelope_hash: { type: string, description: SHA-256 of the envelope, hex. }
+        leaf_index: { type: integer, format: int64, description: Position of the event in the global sequence. }
+        tree_head:
+          type: string
+          description: Signed tree head (C2SP signed-note checkpoint) that covers the leaf.
+        inclusion_proof:
+          type: array
+          description: RFC 6962 inclusion proof, from the leaf up to the root of `tree_head`.
+          items: { type: string, format: byte }
+
+    Limits:
+      type: object
+      properties:
+        EventsPerSecond: { type: number }
+        EventsBurst: { type: integer }
+        EventsPerDay: { type: integer }
+        MaxObjects: { type: integer }
+        RegistrationsPerIP: { type: integer, description: Per hour. }
+        RegistrationsPerDay: { type: integer }
+
+    Info:
+      type: object
+      properties:
+        origin: { type: string, example: kirowen.northernarchive.com/log/v0 }
+        log_url: { type: string, example: 'https://kirowen.northernarchive.com/log/v0/' }
+        system_key_id: { type: string, description: Key that signs key registrations. }
+        limits: { $ref: '#/components/schemas/Limits' }
+
+    RegisterRequest:
+      type: object
+      required: [public_key, proof]
+      properties:
+        public_key: { type: string, format: byte, description: Ed25519 public key (32 bytes), base64. }
+        proof:
+          type: string
+          format: byte
+          description: |
+            Ed25519 signature, base64, over the text
+            `kirowen register v0\n<origin>\n<public key in hex>\n`.
+            `<origin>` comes from `GET /v0/`.
+
+    RegisterResponse:
+      type: object
+      properties:
+        source_id: { type: string, description: Your source id, hex. }
+        key_id: { type: string, description: Your key id, hex. }
+        token: { type: string, description: Your token. Shown only once. Keep it secret., example: kw_… }
+        registration: { $ref: '#/components/schemas/Confirmation' }
+
+    Key:
+      type: object
+      properties:
+        key_id: { type: string }
+        source_id: { type: string }
+        public_key: { type: string, format: byte }
+        statement: { type: string, format: byte, description: The key statement (deterministic CBOR), base64. Its hash is the digest of the registration event. }
+        registration_event_hash: { type: string, description: Envelope hash of the event that registered this key. }
+        next_kseq: { type: integer, description: Next key sequence number. Only shown to the owner. }
+        revoked: { type: boolean }
+
+    Me:
+      type: object
+      properties:
+        source_id: { type: string }
+        keys: { type: array, items: { $ref: '#/components/schemas/Key' } }
+        objects: { type: integer, description: Number of objects. }
+
+    NewObject:
+      type: object
+      properties:
+        object_id: { type: string, description: The new object id, hex. }
+        next_oseq: { type: integer, example: 0 }
+
+    Object:
+      type: object
+      properties:
+        object_id: { type: string }
+        next_oseq: { type: integer, description: Sequence number the next event of this object must use. }
+        last_hash: { type: string, nullable: true, description: Envelope hash of the last event. The next event uses it as `prev`. Null if there are none. }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              oseq: { type: integer }
+              envelope_hash: { type: string }
+              leaf_index: { type: integer, nullable: true, description: Null while still being sequenced. }
+
+  responses:
+    Unauthorized:
+      description: Missing, malformed or unknown token.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Not found, or not yours.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    BadRequest:
+      description: Malformed request.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    TooMany:
+      description: Rate limit or quota reached.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+paths:
+  /v0/:
+    get:
+      tags: [Registry]
+      summary: Registry information
+      description: Log name (origin), log address, system key and limits. No token needed.
+      operationId: info
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/Info' } } }
+
+  /v0/sources:
+    post:
+      tags: [Sources]
+      summary: Register a source
+      description: |
+        Creates a source for your key and returns its token. **The easiest way is the
+        [home page](/#register)**, which creates the key and signs the proof in your browser.
+
+        Calling it here needs a proof signed by your key (see the request schema). Registering
+        adds a permanent entry to the public log. Limit: 5 per IP per hour.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Registered.
+          content: { application/json: { schema: { $ref: '#/components/schemas/RegisterResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: This key is already registered.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/TooMany' }
+
+  /v0/sources/me:
+    get:
+      tags: [Sources]
+      summary: Your source
+      description: Your source id, your keys with their next `kseq`, and how many objects you have.
+      operationId: me
+      security: [{ token: [] }]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v0/objects:
+    post:
+      tags: [Objects]
+      summary: Create an object
+      description: |
+        Creates an object (for example a document, a device or a contract) whose events you
+        will record. The registry picks the id. No body needed.
+      operationId: createObject
+      security: [{ token: [] }]
+      responses:
+        '201':
+          description: Created.
+          content: { application/json: { schema: { $ref: '#/components/schemas/NewObject' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooMany' }
+
+  /v0/objects/{object_id}:
+    get:
+      tags: [Objects]
+      summary: Get an object
+      description: |
+        The object's history and its head. To add an event, use `next_oseq` as the envelope's
+        `oseq` and `last_hash` as its `prev`. Only the owner can see it.
+      operationId: getObject
+      security: [{ token: [] }]
+      parameters: [{ $ref: '#/components/parameters/ObjectId' }]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/Object' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v0/events:
+    post:
+      tags: [Events]
+      summary: Submit an event
+      description: |
+        Send a signed envelope file (COSE_Sign1, at most 1 KiB). The answer comes once a signed
+        tree head covers it, in about 1 second. Sending the same bytes again returns the same
+        confirmation.
+
+        Before signing, read `next_oseq` and `last_hash` from `GET /v0/objects/{object_id}` and
+        `next_kseq` from `GET /v0/sources/me`.
+      operationId: submitEvent
+      security: [{ token: [] }]
+      requestBody:
+        required: true
+        content:
+          application/cose:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Recorded.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Confirmation' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: The envelope's source, key or object is not yours.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: A head moved. The body has the current `next_oseq`/`last_hash` or `next_kseq`. Read them again and re-sign.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '413':
+          description: Envelope larger than 1 KiB.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429': { $ref: '#/components/responses/TooMany' }
+
+  /v0/events/{envelope_hash}:
+    get:
+      tags: [Events]
+      summary: Get a proof of inclusion
+      description: |
+        For a known envelope hash: its position in the log, the signed tree head and the
+        inclusion proof. Anyone can ask. Try it with the `registration_event_hash` of a key.
+      operationId: getEvent
+      parameters: [{ $ref: '#/components/parameters/EnvelopeHash' }]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/Confirmation' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Still being sequenced. Retry in a second.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /v0/envelopes/{envelope_hash}:
+    get:
+      tags: [Events]
+      summary: Download an envelope
+      description: The signed envelope of one of your events. Only the owner can download it.
+      operationId: getEnvelope
+      security: [{ token: [] }]
+      parameters: [{ $ref: '#/components/parameters/EnvelopeHash' }]
+      responses:
+        '200':
+          description: The envelope bytes.
+          content:
+            'application/cose; cose-type="cose-sign1"':
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v0/keys/{key_id}:
+    get:
+      tags: [Keys]
+      summary: Get a key
+      description: |
+        A public key and its statement. With the owner's token it also shows `next_kseq`.
+        The example is the registry's system key.
+      operationId: getKey
+      security: [{}, { token: [] }]
+      parameters: [{ $ref: '#/components/parameters/KeyId' }]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/Key' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }

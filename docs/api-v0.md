@@ -17,6 +17,8 @@
 
 Header: `Authorization: Bearer kw_…`. Errors are JSON: `{"error": "…"}`, sometimes with extra fields.
 
+CORS is open (`Access-Control-Allow-Origin: *`): any web page may call the API. This is safe because the token travels in a header, never in a cookie, so a page can only act with a token it already holds. The website (`web/`, served at `https://kirowen.northernarchive.com/`) offers browser registration and an interactive console (`/docs/`, Swagger UI over `web/openapi.yaml`).
+
 ## 2. Endpoints
 
 | Method and path | Token | Purpose |

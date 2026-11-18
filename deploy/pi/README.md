@@ -3,7 +3,7 @@
 Two containers behind Traefik:
 
 - `kirowen-api` runs `kirowend` (registry + HTTP API) on `kirowen-api.northernarchive.com`. It is the only writer of `data/`.
-- `kirowen-log` (nginx) serves the public log read-only on `kirowen.northernarchive.com/log/v0/`.
+- `kirowen-log` (nginx) serves, read-only, on `kirowen.northernarchive.com`: the website (`web/`: landing, browser registration, API console at `/docs/`) and the public log at `/log/v0/`.
 
 Layout on the host:
 
@@ -16,6 +16,7 @@ kirowen/
   data/log/              public log (served at /log/v0/)
   data/envelopes/        envelopes (not served)
   data/state.db          SQLite state (not served)
+  web/                   copy of the repository's web/ (served at /)
   docker-compose.yml, nginx.conf
 ```
 
@@ -31,6 +32,8 @@ Keys, once, on the host (with a locally built `kirowen` CLI):
 kirowen keygen-log -origin kirowen.northernarchive.com/log/v0 -out keys/log
 kirowen keygen -out keys/system
 ```
+
+Copy the website from the repository: `rsync -a --delete web/ <host>:kirowen/web/`.
 
 Start: `docker compose up -d`. The container runs as uid 1001, which must own `data/` and be able to read `keys/`.
 

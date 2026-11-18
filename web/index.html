@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirowen</title>
+<meta name="description" content="Kirowen: an open, free registry of immutable events with cryptographic proofs.">
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/register.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="/">Kirowen</a>
+    <nav>
+      <a href="/docs/">API</a>
+      <a href="/log/v0/checkpoint">Log</a>
+      <a href="https://github.com/pasta0126/Kirowen">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="kicker">Alpha · public log may be reset</p>
+    <h1>Everything remains.</h1>
+    <p class="lead">Kirowen is an open, free registry of immutable events. Independent systems send it
+      events about their own objects. Kirowen puts every event into a single global sequence and gives
+      anyone cryptographic proof that the history has not been changed.</p>
+    <p class="actions">
+      <a class="btn primary" href="#register">Register a source</a>
+      <a class="btn" href="/docs/">Open the API console</a>
+    </p>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h3>Append-only</h3>
+      <p>Events are never updated or deleted. A correction is a new event.</p>
+    </div>
+    <div class="card">
+      <h3>Tamper-evident</h3>
+      <p>The history is a Merkle transparency log (RFC 6962, C2SP). If someone rewrites it, including the
+        operator, anyone who kept a proof can detect it.</p>
+    </div>
+    <div class="card">
+      <h3>Hash-only</h3>
+      <p>You send a signed envelope with a hash of your data, never the data itself. Your content stays
+        with you.</p>
+    </div>
+    <div class="card">
+      <h3>Free, no token</h3>
+      <p>No blockchain, no cryptocurrency, no fees. Open standards and open source (Apache 2.0).</p>
+    </div>
+  </section>
+
+  <section class="note">
+    <h2>What it guarantees, and what it does not</h2>
+    <p>Kirowen proves that <strong>a source signed a statement</strong> and that the statement
+      <strong>has not been altered since</strong> it entered the log. Tampering is <em>detected</em>, not
+      made impossible: detection relies on verifiers holding proofs and on the log being watched.
+      Kirowen does not say whether a statement is true, and this alpha runs on a single server with no
+      availability guarantee.</p>
+  </section>
+
+  <section id="register" class="panel">
+    <h2>Register a source</h2>
+    <p>A source is you, or a system of yours, that records events. Registering is free and needs no
+      account.</p>
+    <ol class="steps">
+      <li>Your browser creates an Ed25519 key and signs the registration. <strong>The key never leaves
+        your browser</strong>; the registry only sees its public half.</li>
+      <li>You get a <strong>token</strong> to call the API. It is shown only once.</li>
+      <li>Download your files. With them you can use the API console, your own code or the
+        <a href="https://github.com/pasta0126/Kirowen#status">kirowen CLI</a>.</li>
+    </ol>
+    <p class="warn">Registering adds a permanent entry to the public log. Limit: 5 registrations per IP
+      per hour.</p>
+
+    <form id="reg-form">
+      <label class="check"><input type="checkbox" id="reg-ok" required> I understand that this entry stays in the public log.</label>
+      <button type="submit" class="btn primary" id="reg-btn">Create my source</button>
+    </form>
+    <p id="reg-status" class="status" role="status" aria-live="polite"></p>
+
+    <div id="reg-result" class="result" hidden>
+      <h3>Your source is registered</h3>
+      <dl>
+        <dt>Source id</dt><dd><code id="r-source"></code></dd>
+        <dt>Key id</dt><dd><code id="r-key"></code></dd>
+        <dt>Registered at leaf</dt><dd><code id="r-leaf"></code></dd>
+        <dt>Token</dt>
+        <dd class="token"><input id="r-token" readonly aria-label="Token"><button type="button" class="btn small" id="r-copy">Copy</button></dd>
+      </dl>
+      <p class="warn"><strong>Save your files now.</strong> This page does not keep them. If you lose the key you
+        cannot sign events; if you lose the token you cannot call the API as this source.</p>
+      <p class="actions">
+        <button type="button" class="btn" id="dl-key">Key (.key, secret)</button>
+        <button type="button" class="btn" id="dl-cred">Credentials (.cred.json, secret)</button>
+        <button type="button" class="btn" id="dl-pub">Public key (.pub)</button>
+      </p>
+      <p class="actions"><a class="btn primary" href="/docs/">Continue to the API console</a></p>
+      <p class="fine">The files use the CLI format: keep <code>.key</code> and <code>.cred.json</code> side by side
+        and run <code>kirowen add -key &lt;name&gt;.key file.txt</code>.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Kirowen · alpha · <a href="https://github.com/pasta0126/Kirowen">source</a> ·
+    <a href="https://github.com/pasta0126/Kirowen/blob/main/docs/api-v0.md">API reference</a> ·
+    log origin <code>kirowen.northernarchive.com/log/v0</code></p>
+</footer>
+</body>
+</html>

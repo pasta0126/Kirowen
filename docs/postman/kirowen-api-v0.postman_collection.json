@@ -1,0 +1,640 @@
+{
+  "info": {
+    "name": "Kirowen API v0",
+    "_postman_id": "4c0f6a52-8e1b-4f1e-9d6a-6b1f0d2a7c10",
+    "description": "Requests for the Kirowen HTTP API (`docs/api-v0.md`) and the public log.\n\n**Order for a first run:** Info, then Register a source (signs the proof in the sandbox), then Me, Create object and Get object.\n\n**Production writes are permanent.** Registering a source appends a key-statement leaf to the public log and it is never removed. Registrations are limited to 5 per IP per hour. Point `baseUrl` at a local `kirowend` to experiment freely.\n\n**Events:** Postman cannot build a COSE_Sign1 envelope. Submit an envelope file (≤ 1 KiB) made with the CLI, or download one with Get envelope and resend it to test idempotency.\n\n**Secrets:** `token` and `sourceSeed` are kept as current values only. Do not export them or commit them.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://kirowen-api.northernarchive.com"
+    },
+    {
+      "key": "logUrl",
+      "value": "https://kirowen.northernarchive.com/log/v0/"
+    },
+    {
+      "key": "origin",
+      "value": "kirowen.northernarchive.com/log/v0"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "sourceSeed",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "sourcePublic",
+      "value": ""
+    },
+    {
+      "key": "sourceId",
+      "value": ""
+    },
+    {
+      "key": "keyId",
+      "value": ""
+    },
+    {
+      "key": "systemKeyId",
+      "value": ""
+    },
+    {
+      "key": "objectId",
+      "value": ""
+    },
+    {
+      "key": "envelopeHash",
+      "value": ""
+    },
+    {
+      "key": "nextOseq",
+      "value": ""
+    },
+    {
+      "key": "lastHash",
+      "value": ""
+    },
+    {
+      "key": "nextKseq",
+      "value": ""
+    },
+    {
+      "key": "registerPublicKeyB64",
+      "value": ""
+    },
+    {
+      "key": "registerProofB64",
+      "value": ""
+    },
+    {
+      "key": "treeSize",
+      "value": ""
+    },
+    {
+      "key": "firstTile",
+      "value": "000.p/1"
+    }
+  ],
+  "item": [
+    {
+      "name": "API",
+      "item": [
+        {
+          "name": "Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v0/",
+            "description": "Origin, log URL, system key id and limits. Run it first: it sets `origin` for the registration proof."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set(\"origin\", j.origin);",
+                  "pm.collectionVariables.set(\"systemKeyId\", j.system_key_id);",
+                  "pm.collectionVariables.set(\"logUrl\", j.log_url);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register a source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/sources",
+            "description": "Registers the key in `sourceSeed` (a new random key if empty) and saves `token`, `sourceId`, `keyId`. The console prints the key and the credentials in the CLI file formats. To register another source, clear `sourceSeed`. Writes a permanent leaf to the log.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"public_key\": \"{{registerPublicKeyB64}}\",\n  \"proof\": \"{{registerProofB64}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Signs the registration proof in the sandbox with tweetnacl (Ed25519).",
+                  "// The seed is the same one the CLI keeps in \"ed25519_seed\" (kirowen keygen),",
+                  "// so you can paste a CLI key here, or let this script create a new one.",
+                  "const nacl = pm.require(\"npm:tweetnacl@1.0.3\");",
+                  "const util = pm.require(\"npm:tweetnacl-util@0.15.1\");",
+                  "const toHex = b => Array.from(b, x => x.toString(16).padStart(2, \"0\")).join(\"\");",
+                  "const fromHex = h => new Uint8Array(h.match(/../g).map(x => parseInt(x, 16)));",
+                  "",
+                  "let seedHex = pm.collectionVariables.get(\"sourceSeed\");",
+                  "if (!seedHex) {",
+                  "    seedHex = toHex(nacl.randomBytes(32));",
+                  "    pm.collectionVariables.set(\"sourceSeed\", seedHex);",
+                  "    console.log(\"New source key generated\");",
+                  "}",
+                  "const kp = nacl.sign.keyPair.fromSeed(fromHex(seedHex));",
+                  "const origin = pm.collectionVariables.get(\"origin\") || \"kirowen.northernarchive.com/log/v0\";",
+                  "const msg = \"kirowen register v0\\n\" + origin + \"\\n\" + toHex(kp.publicKey) + \"\\n\";",
+                  "const sig = nacl.sign.detached(util.decodeUTF8(msg), kp.secretKey);",
+                  "",
+                  "pm.collectionVariables.set(\"sourcePublic\", toHex(kp.publicKey));",
+                  "pm.collectionVariables.set(\"registerPublicKeyB64\", util.encodeBase64(kp.publicKey));",
+                  "pm.collectionVariables.set(\"registerProofB64\", util.encodeBase64(sig));",
+                  "// Key file in the CLI format, to use the same key with \"kirowen add -key ...\".",
+                  "console.log(\"CLI key file:\", JSON.stringify({ ed25519_seed: seedHex, ed25519_public: toHex(kp.publicKey) }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const j = pm.response.json();",
+                  "    pm.collectionVariables.set(\"token\", j.token);",
+                  "    pm.collectionVariables.set(\"sourceId\", j.source_id);",
+                  "    pm.collectionVariables.set(\"keyId\", j.key_id);",
+                  "    pm.collectionVariables.set(\"envelopeHash\", j.registration.envelope_hash);",
+                  "    // The token is shown once. For the CLI, save it next to the key as <name>.cred.json:",
+                  "    console.log(\"CLI cred file:\", JSON.stringify({ api: pm.collectionVariables.get(\"baseUrl\"), source_id: j.source_id, token: j.token }));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/sources/me",
+            "description": "Source id, keys with their `next_kseq`, object count."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.keys && j.keys.length) {",
+                  "    pm.collectionVariables.set(\"keyId\", j.keys[0].key_id);",
+                  "    pm.collectionVariables.set(\"nextKseq\", j.keys[0].next_kseq);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create object",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/objects",
+            "description": "Creates an object with a registry-assigned id. Saves `objectId`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"objectId\", pm.response.json().object_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get object",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/objects/{{objectId}}",
+            "description": "Head (`next_oseq`, `last_hash`) and history. Owner only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set(\"nextOseq\", j.next_oseq);",
+                  "pm.collectionVariables.set(\"lastHash\", j.last_hash || \"\");",
+                  "if (j.events.length) pm.collectionVariables.set(\"envelopeHash\", j.events[j.events.length - 1].envelope_hash);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/cose; cose-type=\"cose-sign1\""
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/events",
+            "description": "Body: the COSE_Sign1 envelope bytes (≤ 1 KiB). Pick the file under Body → binary. Returns the confirmation once a signed tree head covers it (about 1 s). Identical bytes return the original confirmation.",
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": ""
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK (or 409 if a head moved)\", () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));",
+                  "if (pm.response.code === 200) pm.collectionVariables.set(\"envelopeHash\", pm.response.json().envelope_hash);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get event confirmation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v0/events/{{envelopeHash}}",
+            "description": "Leaf index, tree head and inclusion proof for a known envelope hash. Public."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"has a confirmation\", () => {",
+                  "    pm.expect(j.envelope_hash).to.eql(pm.variables.get(\"envelopeHash\"));",
+                  "    pm.expect(j.tree_head).to.be.a(\"string\");",
+                  "    pm.expect(j.inclusion_proof).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get envelope",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/envelopes/{{envelopeHash}}",
+            "description": "The envelope bytes (Save response → Save to a file). Owner only, so the registration hash returns 404 here; use the hash of one of your events."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get own key",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/keys/{{keyId}}",
+            "description": "Key statement. With the owner's token it also has `next_kseq`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get system key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v0/keys/{{systemKeyId}}",
+            "description": "The system key statement, anonymous."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Errors",
+      "item": [
+        {
+          "name": "Me without token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v0/sources/me",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 \".trim(), () => pm.response.to.have.status(401));",
+                  "pm.test(\"error is JSON\", () => pm.expect(pm.response.json().error).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer kw_not_a_real_token"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/sources/me",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401 \".trim(), () => pm.response.to.have.status(401));",
+                  "pm.test(\"error is JSON\", () => pm.expect(pm.response.json().error).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register with a bad proof (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/sources",
+            "description": "A valid-looking key with a zeroed signature.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"public_key\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\",\n  \"proof\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"4xx\", () => pm.expect(pm.response.code).to.be.within(400, 499));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit a non-envelope (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/events",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "not cbor"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"4xx\", () => pm.expect(pm.response.code).to.be.within(400, 499));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown object (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v0/objects/00000000000000000000000000000000",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 \".trim(), () => pm.response.to.have.status(404));",
+                  "pm.test(\"error is JSON\", () => pm.expect(pm.response.json().error).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown key (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v0/keys/0000000000000000000000000000000000000000000000000000000000000000",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 \".trim(), () => pm.response.to.have.status(404));",
+                  "pm.test(\"error is JSON\", () => pm.expect(pm.response.json().error).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Public log",
+      "item": [
+        {
+          "name": "Checkpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{logUrl}}checkpoint",
+            "description": "Signed tree head (C2SP signed-note). Sets `treeSize` and `firstTile`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const lines = pm.response.text().split(\"\\n\");",
+                  "pm.test(\"origin matches\", () => pm.expect(lines[0]).to.eql(pm.collectionVariables.get(\"origin\") || lines[0]));",
+                  "const size = parseInt(lines[1], 10);",
+                  "pm.collectionVariables.set(\"treeSize\", size);",
+                  "// Path of the first tile (C2SP tlog-tiles): full when size >= 256, partial otherwise.",
+                  "pm.collectionVariables.set(\"firstTile\", size >= 256 ? \"000\" : \"000.p/\" + size);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "First hash tile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{logUrl}}tile/0/{{firstTile}}",
+            "description": "Level-0 hash tile (32-byte hashes)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "First entry bundle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{logUrl}}tile/entries/{{firstTile}}",
+            "description": "Leaf data for the first tile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

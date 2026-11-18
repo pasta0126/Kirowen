@@ -1,0 +1,110 @@
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --text: #1c1b19;
+  --muted: #5f5b53;
+  --line: #e4e0d8;
+  --accent: #2f5d50;
+  --accent-text: #ffffff;
+  --warn-bg: #fbf3e0;
+  --warn-line: #e6cf96;
+  --error: #a3322a;
+  --code-bg: #f1eee8;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151514;
+    --surface: #1e1d1b;
+    --text: #ecebe7;
+    --muted: #a9a59c;
+    --line: #34322e;
+    --accent: #7fbfa9;
+    --accent-text: #10201b;
+    --warn-bg: #2b2516;
+    --warn-line: #5c4d24;
+    --error: #ef8f86;
+    --code-bg: #2a2926;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151514; --surface: #1e1d1b; --text: #ecebe7; --muted: #a9a59c; --line: #34322e;
+  --accent: #7fbfa9; --accent-text: #10201b; --warn-bg: #2b2516; --warn-line: #5c4d24;
+  --error: #ef8f86; --code-bg: #2a2926; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; letter-spacing: 0.02em; }
+nav { display: flex; gap: 20px; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a:hover { color: var(--text); }
+
+.hero { padding: 64px 0 40px; }
+.kicker { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 8px; }
+h1 { font-size: clamp(2rem, 6vw, 3.2rem); line-height: 1.1; margin: 0 0 16px; }
+h2 { font-size: 1.4rem; margin: 0 0 12px; }
+h3 { font-size: 1.05rem; margin: 0 0 6px; }
+.lead { font-size: 1.15rem; color: var(--muted); max-width: 680px; margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0 0; }
+
+.btn {
+  display: inline-block; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); font: inherit; text-decoration: none; cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.btn.small { padding: 6px 12px; font-size: 0.9rem; }
+.btn:disabled { opacity: 0.6; cursor: wait; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0 40px; }
+.card, .panel, .note { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card p { margin: 0; color: var(--muted); }
+.note { margin-bottom: 40px; }
+.note p { margin: 0; }
+.panel { margin-bottom: 48px; }
+.steps { padding-left: 20px; }
+.steps li { margin-bottom: 6px; }
+
+.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px; padding: 10px 14px; }
+.check { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; }
+.check input { margin-top: 5px; }
+.status { min-height: 1.6em; color: var(--muted); }
+.status.error { color: var(--error); }
+
+.result { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 16px; }
+dt { color: var(--muted); }
+dd { margin: 0; min-width: 0; }
+.token { display: flex; gap: 8px; }
+.token input {
+  flex: 1; min-width: 0; font: 0.9rem ui-monospace, Menlo, monospace; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--code-bg); color: var(--text);
+}
+.fine { color: var(--muted); font-size: 0.9rem; }
+
+.foot { border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; padding-top: 16px; padding-bottom: 32px; }
+
+@media (max-width: 560px) {
+  dl { grid-template-columns: 1fr; gap: 2px; }
+  dd { margin-bottom: 10px; }
+  .hero { padding-top: 40px; }
+}
+
+/* API console: Swagger UI draws its own light theme. */
+body.docs { background: #ffffff; color-scheme: light; }
+body.docs .top { --surface: #ffffff; --line: #e4e0d8; --text: #1c1b19; --muted: #5f5b53; }
+body.docs .swagger-ui .topbar { display: none; }

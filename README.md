@@ -14,7 +14,7 @@ Kirowen guarantees that a source made a statement and that the statement has not
 
 ## Status
 
-Alpha. The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). The registry runs with a public HTTP API ([docs/api-v0.md](docs/api-v0.md)) and anyone can register.
+Alpha. The implementation is in Go, on top of [Trillian Tessera](https://github.com/transparency-dev/tessera). The registry runs with a public HTTP API ([docs/api-v0.md](docs/api-v0.md)) and anyone can register, from the CLI or from the website: **https://kirowen.northernarchive.com** (registration in the browser and an interactive API console at [`/docs/`](https://kirowen.northernarchive.com/docs/)).
 
 ```sh
 go build ./cmd/kirowen

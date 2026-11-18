@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -309,5 +310,33 @@ func TestReconcile(t *testing.T) {
 	// And the same event can now be submitted for real.
 	if code := e.do("POST", "/v0/events", alice.token, raw, nil); code != http.StatusOK {
 		t.Fatalf("resubmit: %d", code)
+	}
+}
+
+func TestCORS(t *testing.T) {
+	e := newEnv(t)
+	defer e.stop()
+	req, _ := http.NewRequest(http.MethodOptions, e.srv.URL+"/v0/events", nil)
+	req.Header.Set("Origin", "https://example.org")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("preflight: status %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Authorization") {
+		t.Fatalf("preflight: Allow-Headers %q", got)
+	}
+	resp, err = http.Get(e.srv.URL + "/v0/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("GET: Allow-Origin %q", got)
 	}
 }

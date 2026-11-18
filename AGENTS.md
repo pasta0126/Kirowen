@@ -21,6 +21,8 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 - `state`: SQLite state (sources, token hashes, keys, objects and heads, envelope index).
 - `api`: the HTTP API (`docs/api-v0.md`): self-service registration with a token per source, objects, events with the stateful acceptance rules, reads, quotas, crash reconciliation.
 - `verify`: tree head, inclusion and consistency checks, and a full log audit (a monitor).
+- `web/`: the static website (landing, browser registration with WebCrypto Ed25519, Swagger UI over `web/openapi.yaml`). Keep `web/openapi.yaml` in sync with `docs/api-v0.md` and `api/`.
+- `docs/postman/`: Postman collection for the API.
 - `cmd/kirowend`: the registry daemon. `cmd/kirowen`: the client CLI (`keygen-log`, `keygen`, `register`, `object`, `add`, `verify`, `audit`).
 
 **Registration and writes happen only through the API**, for everyone including the operator. Do not add commands that write to a registry directory directly.

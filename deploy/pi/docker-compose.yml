@@ -3,7 +3,8 @@
 #
 # - api: kirowend, the registry and HTTP API (kirowen-api.<domain>). It is
 #   the only writer of data/.
-# - log: nginx serving only the public log, read-only (kirowen.<domain>).
+# - log: nginx serving the website (web/) and the public log, read-only
+#   (kirowen.<domain>).
 #   Envelopes, state.db and keys are never mounted into it.
 
 services:
@@ -45,6 +46,7 @@ services:
       - /var/run
     volumes:
       - ./data/log:/srv/log:ro
+      - ./web:/srv/web:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - proxy
