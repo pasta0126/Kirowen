@@ -34,6 +34,20 @@ go build ./cmd/kirowen
 - [Envelope format v0](docs/envelope-v0.md): wire format and initial parameters.
 - [Governance and operations](docs/governance-and-operations.md): legal, sustainability and naming.
 
+## Public log
+
+The phase 0 log runs at **https://kirowen.northernarchive.com/log/v0/** (origin `kirowen.northernarchive.com/log/v0`). It is an alpha: it may be reset.
+
+Its verifier key is published here, out of band from the log itself: [`keys-public/kirowen.northernarchive.com-log-v0.pub`](keys-public/kirowen.northernarchive.com-log-v0.pub)
+
+```
+kirowen.northernarchive.com/log/v0+17c4e654+AaDWeAoySrOyLKK4lZEvGxHMe/WpGWvb4ECEtqIjR+qj
+```
+
+```sh
+./kirowen audit -log https://kirowen.northernarchive.com/log/v0/ -log-pub keys-public/kirowen.northernarchive.com-log-v0.pub
+```
+
 ## License
 
 [Apache License 2.0](LICENSE).
