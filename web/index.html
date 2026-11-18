@@ -5,13 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kirowen</title>
 <meta name="description" content="Kirowen: an open, free registry of immutable events with cryptographic proofs.">
+<meta name="theme-color" content="#0b1016" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1016'/%3E%3Cpath d='M8 21v-5h8v-5M24 21v-5h-8' fill='none' stroke='%2334d399' stroke-width='2'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%2334d399'/%3E%3Crect x='5' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='13' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='21' y='21' width='6' height='6' rx='1.5' fill='%23fbbf24'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/hero.js" defer></script>
 <script src="/assets/register.js" defer></script>
 </head>
 <body>
+<div class="backdrop" aria-hidden="true"></div>
+
 <header class="top">
   <div class="wrap bar">
-    <a class="brand" href="/">Kirowen</a>
+    <a class="brand" href="/">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M8 21v-5h8v-5M24 21v-5h-8" fill="none" stroke="var(--ok)" stroke-width="2"/>
+        <circle cx="16" cy="9" r="3" fill="var(--ok)"/>
+        <rect x="5" y="21" width="6" height="6" rx="1.5" fill="var(--hash)"/>
+        <rect x="13" y="21" width="6" height="6" rx="1.5" fill="var(--hash)"/>
+        <rect x="21" y="21" width="6" height="6" rx="1.5" fill="var(--checkpoint)"/>
+      </svg>
+      Kirowen
+    </a>
     <nav>
       <a href="/docs/">API</a>
       <a href="/log/v0/checkpoint">Log</a>
@@ -22,8 +38,8 @@
 
 <main class="wrap">
   <section class="hero">
-    <p class="kicker">Alpha · public log may be reset</p>
-    <h1>Everything remains.</h1>
+    <p class="kicker"><span class="dot"></span> Alpha · the public log may be reset</p>
+    <h1>Everything <span class="grad">remains.</span></h1>
     <p class="lead">Kirowen is an open, free registry of immutable events. Independent systems send it
       events about their own objects. Kirowen puts every event into a single global sequence and gives
       anyone cryptographic proof that the history has not been changed.</p>
@@ -31,30 +47,58 @@
       <a class="btn primary" href="#register">Register a source</a>
       <a class="btn" href="/docs/">Open the API console</a>
     </p>
+    <p id="live" class="live" hidden>
+      <span class="pulse" aria-hidden="true"></span>
+      <span>Live log</span>
+      <span class="sep">·</span>
+      <span>tree size <strong id="live-size">0</strong></span>
+      <span class="sep">·</span>
+      <span>root <code id="live-root"></code></span>
+    </p>
+  </section>
+
+  <section class="viz reveal" aria-labelledby="viz-title">
+    <div class="viz-head">
+      <h2 id="viz-title">How the log works <span class="tag">simulation</span></h2>
+      <ul class="legend">
+        <li><i class="sw hash"></i> event</li>
+        <li><i class="sw checkpoint"></i> checkpoint</li>
+        <li><i class="sw ok"></i> inclusion path</li>
+        <li><i class="sw witness"></i> witness</li>
+      </ul>
+    </div>
+    <canvas id="logviz" role="img" aria-label="Animation: events are appended to a Merkle tree, checkpoints take their own positions, signed tree heads go to witnesses and full blocks are kept as tiles."></canvas>
+    <p class="caption">Illustration. Each event is hashed into a Merkle tree and gets a proof of inclusion. A
+      checkpoint takes its own position every 8 events here (every 1,000 in the real log). Signed tree heads
+      go to independent witnesses, so a rewritten history is detected.</p>
   </section>
 
   <section class="grid">
-    <div class="card">
+    <div class="card reveal">
+      <span class="ic hash" aria-hidden="true">→</span>
       <h3>Append-only</h3>
       <p>Events are never updated or deleted. A correction is a new event.</p>
     </div>
-    <div class="card">
+    <div class="card reveal">
+      <span class="ic ok" aria-hidden="true">◆</span>
       <h3>Tamper-evident</h3>
       <p>The history is a Merkle transparency log (RFC 6962, C2SP). If someone rewrites it, including the
         operator, anyone who kept a proof can detect it.</p>
     </div>
-    <div class="card">
+    <div class="card reveal">
+      <span class="ic witness" aria-hidden="true">#</span>
       <h3>Hash-only</h3>
       <p>You send a signed envelope with a hash of your data, never the data itself. Your content stays
         with you.</p>
     </div>
-    <div class="card">
+    <div class="card reveal">
+      <span class="ic checkpoint" aria-hidden="true">∅</span>
       <h3>Free, no token</h3>
       <p>No blockchain, no cryptocurrency, no fees. Open standards and open source (Apache 2.0).</p>
     </div>
   </section>
 
-  <section class="note">
+  <section class="note reveal">
     <h2>What it guarantees, and what it does not</h2>
     <p>Kirowen proves that <strong>a source signed a statement</strong> and that the statement
       <strong>has not been altered since</strong> it entered the log. Tampering is <em>detected</em>, not
@@ -63,7 +107,7 @@
       availability guarantee.</p>
   </section>
 
-  <section id="register" class="panel">
+  <section id="register" class="panel reveal">
     <h2>Register a source</h2>
     <p>A source is you, or a system of yours, that records events. Registering is free and needs no
       account.</p>
@@ -84,7 +128,7 @@
     <p id="reg-status" class="status" role="status" aria-live="polite"></p>
 
     <div id="reg-result" class="result" hidden>
-      <h3>Your source is registered</h3>
+      <h3><span class="leafchip" aria-hidden="true"></span> Your source is registered</h3>
       <dl>
         <dt>Source id</dt><dd><code id="r-source"></code></dd>
         <dt>Key id</dt><dd><code id="r-key"></code></dd>

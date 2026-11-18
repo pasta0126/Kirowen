@@ -6,6 +6,7 @@
 <title>Kirowen API</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css"
       integrity="sha384-wxLW6kwyHktdDGr6Pv1zgm/VGJh99lfUbzSn6HNHBENZlCN7W602k9VkGdxuFvPn" crossorigin="anonymous">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1016'/%3E%3Cpath d='M8 21v-5h8v-5M24 21v-5h-8' fill='none' stroke='%2334d399' stroke-width='2'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%2334d399'/%3E%3Crect x='5' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='13' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='21' y='21' width='6' height='6' rx='1.5' fill='%23fbbf24'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"
         integrity="sha384-wmyclcVGX/WhUkdkATwhaK1X1JtiNrr2EoYJ+diV3vj4v6OC5yCeSu+yW13SYJep" crossorigin="anonymous" defer></script>
@@ -14,7 +15,16 @@
 <body class="docs">
 <header class="top">
   <div class="wrap bar">
-    <a class="brand" href="/">Kirowen</a>
+    <a class="brand" href="/">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M8 21v-5h8v-5M24 21v-5h-8" fill="none" stroke="var(--ok)" stroke-width="2"/>
+        <circle cx="16" cy="9" r="3" fill="var(--ok)"/>
+        <rect x="5" y="21" width="6" height="6" rx="1.5" fill="var(--hash)"/>
+        <rect x="13" y="21" width="6" height="6" rx="1.5" fill="var(--hash)"/>
+        <rect x="21" y="21" width="6" height="6" rx="1.5" fill="var(--checkpoint)"/>
+      </svg>
+      Kirowen
+    </a>
     <nav>
       <a href="/#register">Register</a>
       <a href="/log/v0/checkpoint">Log</a>
@@ -22,6 +32,13 @@
     </nav>
   </div>
 </header>
+<section class="docs-hero">
+  <div class="wrap">
+    <h1>API console</h1>
+    <p>Documentation you can run. Every request goes to the real API.
+      <a href="/#register">Register a source</a> to get a token, then click <strong>Authorize</strong>.</p>
+  </div>
+</section>
 <div id="swagger"></div>
 </body>
 </html>
