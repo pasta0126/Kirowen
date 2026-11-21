@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kirowen Explorer</title>
+<meta name="description" content="Look up any leaf of the Kirowen log and verify it in your browser.">
+<meta name="theme-color" content="#0b1016" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1016'/%3E%3Cpath d='M8 21v-5h8v-5M24 21v-5h-8' fill='none' stroke='%2334d399' stroke-width='2'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%2334d399'/%3E%3Crect x='5' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='13' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='21' y='21' width='6' height='6' rx='1.5' fill='%23fbbf24'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/log.js" defer></script>
+<script src="/assets/explorer.js" defer></script>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="/">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M8 21v-5h8v-5M24 21v-5h-8" fill="none" stroke="var(--ok)" stroke-width="2"/>
+        <circle cx="16" cy="9" r="3" fill="var(--ok)"/>
+        <rect x="5" y="21" width="6" height="6" rx="1.5" fill="var(--hash)"/>
+        <rect x="13" y="21" width="6" height="6" rx="1.5" fill="var(--hash)"/>
+        <rect x="21" y="21" width="6" height="6" rx="1.5" fill="var(--checkpoint)"/>
+      </svg>
+      Kirowen
+    </a>
+    <nav>
+      <a href="/explorer/">Explorer</a>
+      <a href="/docs/">API</a>
+      <a href="/log/v0/checkpoint">Log</a>
+      <a href="https://github.com/pasta0126/Kirowen">GitHub</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap explorer">
+  <section class="ex-hero">
+    <h1>Explorer</h1>
+    <p class="lead">Look up any leaf of the public log by position or by envelope hash. Your browser reads
+      it from the public tiles and checks it against the signed tree head.</p>
+    <form id="ex-form" class="ex-search" role="search">
+      <label for="ex-q" class="sr">Leaf position or envelope hash</label>
+      <input id="ex-q" name="q" autocomplete="off" spellcheck="false" placeholder="Position (e.g. 0) or envelope hash (64 hex digits)">
+      <button type="submit" class="btn primary">Look up</button>
+    </form>
+    <p class="ex-nav">
+      <button type="button" class="btn small" id="ex-prev">← Previous</button>
+      <button type="button" class="btn small" id="ex-next">Next →</button>
+      <button type="button" class="btn small" id="ex-latest">Latest</button>
+    </p>
+    <p id="ex-status" class="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="ex-result" class="panel ex-result" hidden>
+    <h2><span id="ex-chip" class="chip"></span> Leaf <span id="ex-index"></span></h2>
+    <dl id="ex-fields"></dl>
+
+    <h3>Checks</h3>
+    <ul id="ex-checks" class="checks"></ul>
+    <p class="fine">These checks run in code served by the operator of this log, so they are only as
+      independent as that code. For an independent check, run the open-source
+      <a href="https://github.com/pasta0126/Kirowen#status">kirowen CLI</a> (<code>kirowen verify</code>,
+      <code>kirowen audit</code>) with the published log key. Not checked here: consistency between tree heads,
+      and witness cosignatures.</p>
+
+    <details class="ex-more">
+      <summary>Tree head and inclusion proof</summary>
+      <dl id="ex-proof"></dl>
+      <pre id="ex-treehead"></pre>
+      <ol id="ex-path" class="path"></ol>
+    </details>
+
+    <details class="ex-more" id="ex-note-box" hidden>
+      <summary>Checkpoint note (as sent to witnesses)</summary>
+      <pre id="ex-note"></pre>
+    </details>
+
+    <p id="ex-private" class="note ex-private" hidden>An event leaf holds only the hash of a signed
+      envelope. It proves that an envelope with this hash was logged at this position. Who sent it, which object
+      it is about, when it was declared and what it says are private by design: only the source can show the
+      envelope and the content. Leaves carry no timestamp.</p>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Kirowen · alpha · <a href="https://github.com/pasta0126/Kirowen/blob/main/docs/explorer-v0.md">how the explorer works</a> ·
+    log key <code>kirowen.northernarchive.com/log/v0+17c4e654</code></p>
+</footer>
+</body>
+</html>

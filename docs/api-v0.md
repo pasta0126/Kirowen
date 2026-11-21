@@ -30,6 +30,7 @@ CORS is open (`Access-Control-Allow-Origin: *`): any web page may call the API. 
 | `GET /v0/objects/{object_id}` | yes, owner | Head (`next_oseq`, `last_hash`) and history (`oseq`, `envelope_hash`, `leaf_index`) |
 | `POST /v0/events` | yes | Submit an envelope (body: COSE_Sign1 bytes, ≤ 1 KiB). Returns the confirmation |
 | `GET /v0/events/{envelope_hash}` | no | Confirmation (leaf index, tree head, inclusion proof) for a known hash |
+| `GET /v0/leaves/{index}` | no | Any leaf (event or checkpoint) by position, with a tree head and inclusion proof (`docs/explorer-v0.md` §4) |
 | `GET /v0/envelopes/{envelope_hash}` | yes, owner | The envelope bytes |
 | `GET /v0/keys/{key_id}` | no | Key statement; `next_kseq` only for the owner |
 

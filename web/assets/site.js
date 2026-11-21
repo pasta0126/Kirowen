@@ -35,14 +35,75 @@ document.addEventListener("DOMContentLoaded", () => {
     shown = n;
   }
 
+  // Latest leaves: the last LATEST leaves, read from the public tiles
+  // (docs/explorer-v0.md §2). Display only; the explorer verifies.
+  const LATEST = 5;
+  const strip = document.getElementById("latest");
+  const list = document.getElementById("latest-list");
+  const cards = new Map(); // leaf index -> <li>
+  let latestSize = -1;
+
+  function card(i, l) {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = "/explorer/?leaf=" + i;
+    a.className = "leafcard " + (l ? l.type : "unknown");
+    const top = document.createElement("span");
+    top.className = "lc-type";
+    const sw = document.createElement("i");
+    sw.className = "sw " + (l && l.type === "checkpoint" ? "checkpoint" : "hash");
+    top.append(sw, l ? l.type : "unreadable");
+    const pos = document.createElement("strong");
+    pos.textContent = "#" + i.toLocaleString("en");
+    const detail = document.createElement("code");
+    if (l && l.type === "event") {
+      detail.textContent = l.envelopeHash.slice(0, 10) + "…" + l.envelopeHash.slice(-6);
+      detail.title = "envelope hash " + l.envelopeHash;
+    } else if (l) {
+      detail.textContent = "certifies size " + l.size.toLocaleString("en");
+    }
+    a.append(top, pos, detail);
+    a.setAttribute("aria-label", "Leaf " + i + ", " + (l ? l.type : "unreadable") + ". Open in the explorer.");
+    li.append(a);
+    return li;
+  }
+
+  async function updateLatest(size) {
+    if (!strip || size === latestSize) return;
+    const from = Math.max(0, size - LATEST);
+    const raw = size > from ? await KLog.leaves(from, size, size) : [];
+    if (size < latestSize) { cards.forEach(li => li.remove()); cards.clear(); } // the log was reset
+    const first = latestSize < 0;
+    latestSize = size;
+    strip.hidden = false;
+    strip.classList.toggle("empty", size === 0);
+    for (let k = 0; k < raw.length; k++) {
+      const i = from + k;
+      if (cards.has(i)) continue;
+      let l = null;
+      try { l = KLog.parseLeaf(raw[k]); } catch (_) { /* shown as unreadable */ }
+      const li = card(i, l);
+      if (!first && !reduce) li.classList.add("enter");
+      list.prepend(li);
+      cards.set(i, li);
+    }
+    for (const [i, li] of cards) {
+      if (i >= from) continue;
+      cards.delete(i);
+      if (reduce) { li.remove(); continue; }
+      li.classList.add("leave");
+      li.addEventListener("animationend", () => li.remove(), { once: true });
+      setTimeout(() => li.remove(), 800);
+    }
+  }
+
   async function refresh() {
+    let size;
     try {
-      const res = await fetch("/log/v0/checkpoint", { cache: "no-store" });
-      if (!res.ok) throw new Error(res.status);
-      const lines = (await res.text()).split("\n");
-      const size = parseInt(lines[1], 10);
-      const root = Array.from(atob(lines[2]), c => c.charCodeAt(0).toString(16).padStart(2, "0")).join("");
-      if (!Number.isFinite(size) || root.length !== 64) throw new Error("bad checkpoint");
+      const cp = await KLog.checkpoint();
+      if (cp.origin !== KLog.ORIGIN) throw new Error("bad origin");
+      size = Number(cp.size);
+      const root = KLog.hex(cp.root);
       if (size !== shown && shown !== 0) { bar.classList.remove("bump"); void bar.offsetWidth; bar.classList.add("bump"); }
       countTo(size);
       rootEl.textContent = root.slice(0, 16) + "…";
@@ -50,6 +111,14 @@ document.addEventListener("DOMContentLoaded", () => {
       bar.hidden = false;
     } catch (_) {
       bar.hidden = true;
+      if (strip) strip.hidden = true;
+      return;
+    }
+    try {
+      await updateLatest(size);
+    } catch (_) {
+      if (strip) strip.hidden = true;
+      latestSize = -1;
     }
   }
 

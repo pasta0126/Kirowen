@@ -37,6 +37,9 @@ import (
 // checkpoint leaves (concept decision 11).
 const DefaultCheckpointEvery = 1000
 
+// ErrNoLeaf is returned by Leaf for a position beyond the integrated tree.
+var ErrNoLeaf = errors.New("registry: no such leaf")
+
 // ErrUnknownKey is returned when no public key is known for an envelope's kid.
 var ErrUnknownKey = errors.New("registry: unknown key id")
 
@@ -305,6 +308,30 @@ func (r *Registry) Prove(ctx context.Context, envelopeHash []byte, index uint64)
 		TreeHead:       cp,
 		InclusionProof: proof,
 	}, nil
+}
+
+// Leaf returns the raw bytes of leaf index and a confirmation for it
+// (EnvelopeHash is nil). It returns ErrNoLeaf if index is not yet in the
+// integrated tree. Everything it returns is public: the leaf is in the
+// tiles and the proof can be rebuilt from them.
+func (r *Registry) Leaf(ctx context.Context, index uint64) ([]byte, *Confirmation, error) {
+	size, err := r.reader.IntegratedSize(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if index >= size {
+		return nil, nil, ErrNoLeaf
+	}
+	b, err := client.GetEntryBundle(ctx, r.fetch.ReadEntryBundle, index/256, size)
+	if err != nil {
+		return nil, nil, err
+	}
+	raw := b.Entries[index%256]
+	c, err := r.Prove(ctx, nil, index)
+	if err != nil {
+		return nil, nil, err
+	}
+	return raw, c, nil
 }
 
 // EventHashes returns the envelope hashes of the event leaves at

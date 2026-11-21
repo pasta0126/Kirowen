@@ -25,6 +25,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -241,6 +242,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v0/objects/{id}", s.getObject)
 	mux.HandleFunc("POST /v0/events", s.submit)
 	mux.HandleFunc("GET /v0/events/{hash}", s.getEvent)
+	mux.HandleFunc("GET /v0/leaves/{index}", s.getLeaf)
 	mux.HandleFunc("GET /v0/envelopes/{hash}", s.getEnvelope)
 	mux.HandleFunc("GET /v0/keys/{id}", s.getKey)
 	return cors(mux)
@@ -784,6 +786,33 @@ func (s *Server) getEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, toJSON(c))
+}
+
+// LeafResponse is the body of GET /v0/leaves/{index}.
+type LeafResponse struct {
+	LeafIndex      uint64   `json:"leaf_index"`
+	Leaf           []byte   `json:"leaf"`
+	TreeHead       string   `json:"tree_head"`
+	InclusionProof [][]byte `json:"inclusion_proof"`
+}
+
+func (s *Server) getLeaf(w http.ResponseWriter, r *http.Request) {
+	v := r.PathValue("index")
+	i, err := strconv.ParseUint(v, 10, 64)
+	if err != nil || strconv.FormatUint(i, 10) != v {
+		writeErr(w, fail(http.StatusBadRequest, "index must be a decimal integer"))
+		return
+	}
+	raw, c, err := s.reg.Leaf(r.Context(), i)
+	if errors.Is(err, registry.ErrNoLeaf) {
+		writeErr(w, fail(http.StatusNotFound, "no such leaf"))
+		return
+	}
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, LeafResponse{LeafIndex: i, Leaf: raw, TreeHead: string(c.TreeHead), InclusionProof: c.InclusionProof})
 }
 
 func (s *Server) getEnvelope(w http.ResponseWriter, r *http.Request) {

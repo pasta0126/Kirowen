@@ -107,6 +107,23 @@ components:
           description: RFC 6962 inclusion proof, from the leaf up to the root of `tree_head`.
           items: { type: string, format: byte }
 
+    Leaf:
+      type: object
+      description: A leaf of the log with a proof of inclusion.
+      properties:
+        leaf_index: { type: integer, format: int64, description: Position of the leaf. }
+        leaf:
+          type: string
+          format: byte
+          description: Leaf bytes, deterministic CBOR `[1, type, body]` (type 1 = event, 2 = checkpoint).
+        tree_head:
+          type: string
+          description: Signed tree head (C2SP signed-note checkpoint) that covers the leaf.
+        inclusion_proof:
+          type: array
+          description: RFC 6962 inclusion proof, from the leaf up to the root of `tree_head`.
+          items: { type: string, format: byte }
+
     Limits:
       type: object
       properties:
@@ -337,6 +354,28 @@ paths:
         '409':
           description: Still being sequenced. Retry in a second.
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /v0/leaves/{index}:
+    get:
+      tags: [Events]
+      summary: Get a leaf by position
+      description: |
+        Any leaf of the log (an event or a checkpoint) with the signed tree head that covers it and
+        an inclusion proof. Anyone can ask. Everything returned is public: the leaf is also in the
+        tiles, and the proof can be rebuilt from them. Try it with `0`.
+      operationId: getLeaf
+      parameters:
+        - name: index
+          in: path
+          required: true
+          description: Leaf position, decimal.
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/Leaf' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /v0/envelopes/{envelope_hash}:
     get:

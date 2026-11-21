@@ -35,6 +35,7 @@ Ids and hashes are always lowercase hex.
 | **Get object** `GET /v0/objects/{objectId}` | Shows the object's history and its head: `next_oseq` (the number of the next event) and `last_hash` (the last event). Only the owner can see it. | `token`, `objectId` |
 | **Submit event** `POST /v0/events` | Records an event. Answers with a confirmation (position in the log and proof) in about 1 second. Sending the same file again returns the same confirmation. | `token` and a signed envelope file (≤ 1 KiB, see below). In **Body → binary**, pick the file. |
 | **Get event confirmation** `GET /v0/events/{envelopeHash}` | Gives the proof that an event is in the log: its position, the signed tree head and the inclusion proof. Anyone can ask. | `envelopeHash` |
+| **Get leaf** `GET /v0/leaves/0` | Gives any leaf by position (an event or a checkpoint), with the signed tree head and the inclusion proof. Anyone can ask. | Nothing. |
 | **Get envelope** `GET /v0/envelopes/{envelopeHash}` | Downloads the signed envelope of one of your events. Use **Save response → Save to a file** to keep it. | `token`, `envelopeHash` of **your own** event (the registration hash gives 404 because that event belongs to the system) |
 | **Get own key** `GET /v0/keys/{keyId}` | Shows your public key and its registration. With your token it also shows `next_kseq`. | `keyId` (`token` optional) |
 | **Get system key** `GET /v0/keys/{systemKeyId}` | Shows the registry's own key, which signs the key registrations. | Nothing (set by *Info*). |

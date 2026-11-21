@@ -21,7 +21,7 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 - `state`: SQLite state (sources, token hashes, keys, objects and heads, envelope index).
 - `api`: the HTTP API (`docs/api-v0.md`): self-service registration with a token per source, objects, events with the stateful acceptance rules, reads, quotas, crash reconciliation.
 - `verify`: tree head, inclusion and consistency checks, and a full log audit (a monitor).
-- `web/`: the static website (landing, browser registration with WebCrypto Ed25519, Swagger UI over `web/openapi.yaml`). Keep `web/openapi.yaml` in sync with `docs/api-v0.md` and `api/`.
+- `web/`: the static website (landing with the latest leaves, browser registration with WebCrypto Ed25519, the explorer at `/explorer/` that verifies a leaf in the browser, Swagger UI over `web/openapi.yaml`). The explorer follows `docs/explorer-v0.md`. Keep `web/openapi.yaml` in sync with `docs/api-v0.md` and `api/`.
 - `docs/postman/`: Postman collection for the API.
 - `cmd/kirowend`: the registry daemon. `cmd/kirowen`: the client CLI (`keygen-log`, `keygen`, `register`, `object`, `add`, `verify`, `audit`).
 
@@ -30,6 +30,7 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 
 - `docs/concept-v0.1.md` is the concept document and the source of the requirements.
+- `docs/explorer-v0.md` specifies the latest-leaves strip, the explorer and `GET /v0/leaves/{index}`.
 - `docs/envelope-v0.md` is the draft wire format (envelope, leaves, checkpoints) and the initial parameters.
 - `docs/governance-and-operations.md` covers non-technical topics: legal, sustainability, governance and naming.
 - `docs/technical-analysis.md` is the technical analysis of the concept. It covers real vs. apparent guarantees, alternatives, a proposed architecture, risks and open questions.

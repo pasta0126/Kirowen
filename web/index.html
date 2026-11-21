@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b1016'/%3E%3Cpath d='M8 21v-5h8v-5M24 21v-5h-8' fill='none' stroke='%2334d399' stroke-width='2'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%2334d399'/%3E%3Crect x='5' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='13' y='21' width='6' height='6' rx='1.5' fill='%2338bdf8'/%3E%3Crect x='21' y='21' width='6' height='6' rx='1.5' fill='%23fbbf24'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/log.js" defer></script>
 <script src="/assets/site.js" defer></script>
 <script src="/assets/hero.js" defer></script>
 <script src="/assets/register.js" defer></script>
@@ -29,6 +30,7 @@
       Kirowen
     </a>
     <nav>
+      <a href="/explorer/">Explorer</a>
       <a href="/docs/">API</a>
       <a href="/log/v0/checkpoint">Log</a>
       <a href="https://github.com/pasta0126/Kirowen">GitHub</a>
@@ -55,6 +57,14 @@
       <span class="sep">·</span>
       <span>root <code id="live-root"></code></span>
     </p>
+    <div id="latest" class="latest" hidden>
+      <div class="latest-head">
+        <h2>Latest leaves</h2>
+        <a href="/explorer/">Open the explorer →</a>
+      </div>
+      <ol id="latest-list" class="latest-list" aria-live="polite"></ol>
+      <p class="latest-empty">The log is empty.</p>
+    </div>
   </section>
 
   <section class="viz reveal" aria-labelledby="viz-title">

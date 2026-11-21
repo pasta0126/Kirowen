@@ -17,11 +17,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/transparency-dev/merkle/proof"
+	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/transparency-dev/tessera/client"
 	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/time/rate"
 
 	"github.com/pasta0126/kirowen/envelope"
+	"github.com/pasta0126/kirowen/leaf"
 	"github.com/pasta0126/kirowen/registry"
 	"github.com/pasta0126/kirowen/state"
 	"github.com/pasta0126/kirowen/verify"
@@ -338,5 +341,45 @@ func TestCORS(t *testing.T) {
 	resp.Body.Close()
 	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
 		t.Fatalf("GET: Allow-Origin %q", got)
+	}
+}
+
+func TestLeaves(t *testing.T) {
+	e := newEnv(t)
+	defer e.stop()
+
+	// System key + 4 registrations: the checkpoint leaf lands at index 4.
+	for range 4 {
+		e.register()
+	}
+	for _, i := range []uint64{0, 4, 5} {
+		var lr LeafResponse
+		if code := e.do("GET", fmt.Sprintf("/v0/leaves/%d", i), "", nil, &lr); code != http.StatusOK {
+			t.Fatalf("leaf %d: %d", i, code)
+		}
+		cp, err := verify.TreeHead([]byte(lr.TreeHead), origin, e.verifier)
+		if err != nil {
+			t.Fatalf("leaf %d: tree head: %v", i, err)
+		}
+		if err := proof.VerifyInclusion(rfc6962.DefaultHasher, i, cp.Size, leaf.Hash(lr.Leaf), lr.InclusionProof, cp.Hash); err != nil {
+			t.Fatalf("leaf %d: inclusion: %v", i, err)
+		}
+		l, err := leaf.Parse(lr.Leaf)
+		if err != nil {
+			t.Fatalf("leaf %d: %v", i, err)
+		}
+		if want := i == 4; (l.Type == leaf.TypeCheckpoint) != want {
+			t.Errorf("leaf %d: type %d", i, l.Type)
+		}
+	}
+	for path, want := range map[string]int{
+		"/v0/leaves/6":   http.StatusNotFound,
+		"/v0/leaves/-1":  http.StatusBadRequest,
+		"/v0/leaves/01":  http.StatusBadRequest,
+		"/v0/leaves/abc": http.StatusBadRequest,
+	} {
+		if code := e.do("GET", path, "", nil, nil); code != want {
+			t.Errorf("%s: %d, want %d", path, code, want)
+		}
 	}
 }

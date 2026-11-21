@@ -332,6 +332,33 @@
           ]
         },
         {
+          "name": "Get leaf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/v0/leaves/0",
+            "description": "Leaf 0 (any position works) with a tree head and inclusion proof. Public."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"has a leaf and a proof\", () => {",
+                  "    pm.expect(j.leaf_index).to.eql(0);",
+                  "    pm.expect(j.leaf).to.be.a(\"string\");",
+                  "    pm.expect(j.tree_head).to.be.a(\"string\");",
+                  "    pm.expect(j.inclusion_proof).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Get envelope",
           "request": {
             "method": "GET",
