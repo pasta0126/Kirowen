@@ -30,6 +30,7 @@ It is not a cryptocurrency, a token, an NFT system or a financial platform.
 Run `gofmt -l .`, `go vet ./...` and `go test ./...` before committing.
 
 - `docs/concept-v0.1.md` is the concept document and the source of the requirements.
+- `docs/cli.md` is the user guide for the `kirowen` CLI.
 - `docs/explorer-v0.md` specifies the latest-leaves strip, the explorer and `GET /v0/leaves/{index}`.
 - `docs/envelope-v0.md` is the draft wire format (envelope, leaves, checkpoints) and the initial parameters.
 - `docs/governance-and-operations.md` covers non-technical topics: legal, sustainability, governance and naming.

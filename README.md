@@ -29,6 +29,8 @@ go build ./cmd/kirowen
 
 The receipt holds the envelope, the salt, the leaf index, the signed tree head and the inclusion proof. With it and the file, anyone holding the two public keys can verify the event. Your content never leaves your machine: only its salted hash is sent.
 
+Step-by-step guide, including keys downloaded from the website: [docs/cli.md](docs/cli.md).
+
 Development: `go test ./...`.
 
 ## Public log
