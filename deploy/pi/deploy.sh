@@ -46,7 +46,10 @@ smoke() {
     -H "Origin: $SITE" -H 'Access-Control-Request-Method: POST' "$API/v0/objects" || true)
   printf '%s CORS preflight\n' "$code"
   [[ "$code" == 204 ]] || fail=1
-  if ! curl -s "$SITE/log/v0/checkpoint" | head -n 1 | grep -qx 'kirowen.northernarchive.com/log/v0'; then
+  # No pipe into grep -q: with pipefail, its early exit can fail curl.
+  local first
+  first=$(curl -s "$SITE/log/v0/checkpoint" || true)
+  if [[ "${first%%$'\n'*}" != 'kirowen.northernarchive.com/log/v0' ]]; then
     echo "checkpoint origin mismatch"; fail=1
   fi
   return $fail
